@@ -212,7 +212,7 @@ export async function createWorkoutSession(splitId: string): Promise<WorkoutSess
 
 export async function saveSessionExercise(
   sessionId: string,
-  templateSlotId: string,
+  templateSlotId: string | null,
   movementId: string,
   sortOrder: number,
   sets: { weight_kg: number; reps: number }[],

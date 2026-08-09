@@ -57,13 +57,16 @@ create index workout_sessions_split_date_idx on workout_sessions (split_id, date
 create table session_exercises (
   id uuid primary key default gen_random_uuid(),
   session_id uuid not null references workout_sessions (id) on delete cascade,
-  template_slot_id uuid not null references split_exercises (id) on delete restrict,
+  template_slot_id uuid references split_exercises (id) on delete restrict,
   movement_id uuid not null references movements (id) on delete restrict,
   sort_order int not null default 0,
   note text,
-  created_at timestamptz not null default now(),
-  unique (session_id, template_slot_id)
+  created_at timestamptz not null default now()
 );
+
+create unique index session_exercises_session_slot_idx
+  on session_exercises (session_id, template_slot_id)
+  where template_slot_id is not null;
 
 create index session_exercises_movement_idx on session_exercises (movement_id);
 
@@ -218,8 +221,33 @@ insert into movements (name, target_muscle) values
   ('Dumbbell Bicep Curl', 'Biceps'),
   ('Dumbbell Flat Bench Press', 'Chest'),
   ('Machine Rear Delt Fly', 'Rear Delts'),
+  ('Smith Machine Press', 'Chest'),
+  ('Smith Machine Squat', 'Quads'),
+  ('Leg Extension', 'Quads'),
+  ('Preacher Bicep Curl', 'Biceps'),
+  ('Dumbbell Hammer Curl', 'Biceps'),
+  ('Pull-ups / Chin-ups', 'Back'),
+  ('Barbell Row', 'Back'),
+  ('Deadlift', 'Back'),
+  ('Rack Pull', 'Back'),
+  ('Straight Arm Pulldown', 'Back'),
+  ('Dumbbell Fly', 'Chest'),
+  ('Decline Bench Press', 'Chest'),
+  ('Arnold Press', 'Shoulders'),
+  ('Cable Lateral Raise', 'Shoulders'),
+  ('Dumbbell Lateral Raise', 'Shoulders'),
+  ('Tricep Pushdown', 'Triceps'),
+  ('Skull Crushers', 'Triceps'),
+  ('Overhead Tricep Extension', 'Triceps'),
+  ('Hack Squat', 'Quads'),
+  ('Bulgarian Split Squat', 'Quads'),
+  ('Seated Calf Raise', 'Calves'),
+  ('Hanging Leg Raise', 'Core'),
+  ('Ab Wheel', 'Core'),
   ('Treadmill Run', 'Cardio'),
-  ('Outdoor Run', 'Cardio');
+  ('Outdoor Run', 'Cardio'),
+  ('Stationary Bike', 'Cardio'),
+  ('Stairmaster', 'Cardio');
 
 -- ---------------------------------------------------------------------------
 -- Seed: split templates

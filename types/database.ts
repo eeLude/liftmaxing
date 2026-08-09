@@ -34,7 +34,7 @@ export type WorkoutSession = {
 export type SessionExercise = {
   id: string;
   session_id: string;
-  template_slot_id: string;
+  template_slot_id: string | null;
   movement_id: string;
   sort_order: number;
   note: string | null;
@@ -161,16 +161,21 @@ export type SetInput = {
   reps: string;
 };
 
-export type ExerciseDraft = {
-  slotId: string;
-  templateMovementId: string;
+export type WorkoutCardDraft = {
+  cardId: string;
+  slotId: string | null;
   performedMovementId: string;
   performedName: string;
   targetMuscle: string;
-  defaultSets: number;
   sets: SetInput[];
   note: string;
-  isSubstituted: boolean;
+};
+
+/** @deprecated Use WorkoutCardDraft */
+export type ExerciseDraft = WorkoutCardDraft & {
+  templateMovementId?: string;
+  defaultSets?: number;
+  isSubstituted?: boolean;
 };
 
 export type PreviousExerciseData = {

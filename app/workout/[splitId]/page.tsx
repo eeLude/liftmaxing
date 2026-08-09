@@ -2,21 +2,13 @@
 
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { use, useCallback, useState } from "react";
-import {
-  ArrowLeft,
-  Check,
-  Copy,
-  Plus,
-  RefreshCw,
-  Trash2,
-} from "lucide-react";
+import { use, useEffect, useMemo, useState } from "react";
+import { ArrowLeft, Check, Copy, Plus, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { MobileLayout } from "@/components/MobileLayout";
 import { RunWorkoutForm } from "@/components/RunWorkoutForm";
 import {
   createWorkoutSession,
-  findOrCreateMovement,
   getAllMovements,
   getPreviousMovementPerformance,
   getSplitById,
@@ -25,7 +17,7 @@ import {
 } from "@/lib/queries";
 import { formatPreviousSets } from "@/lib/utils";
 import { formatFiDate } from "@/lib/dates";
-import type { ExerciseDraft, SetInput, SplitExercise } from "@/types/database";
+import type { Movement, SetInput, WorkoutCardDraft } from "@/types/database";
 
 const emptySet = (): SetInput => ({ weight_kg: "", reps: "" });
 
@@ -33,18 +25,45 @@ function makeEmptySets(count: number): SetInput[] {
   return Array.from({ length: count }, () => emptySet());
 }
 
+function cardFromTemplate(slot: {
+  id: string;
+  movement_id: string;
+  default_sets: number;
+  movements: Movement | null;
+}): WorkoutCardDraft {
+  const movement = slot.movements;
+  return {
+    cardId: slot.id,
+    slotId: slot.id,
+    performedMovementId: slot.movement_id,
+    performedName: movement?.name ?? "Unknown movement",
+    targetMuscle: movement?.target_muscle ?? "Unknown",
+    sets: makeEmptySets(slot.default_sets),
+    note: "",
+  };
+}
+
+function cardFromMovement(movement: Movement): WorkoutCardDraft {
+  return {
+    cardId: crypto.randomUUID(),
+    slotId: null,
+    performedMovementId: movement.id,
+    performedName: movement.name,
+    targetMuscle: movement.target_muscle,
+    sets: makeEmptySets(3),
+    note: "",
+  };
+}
+
 function ExerciseCard({
-  slot,
   draft,
-  allMovements,
   onChange,
+  onRemove,
 }: {
-  slot: SplitExercise;
-  draft: ExerciseDraft;
-  allMovements: { id: string; name: string; target_muscle: string }[];
-  onChange: (draft: ExerciseDraft) => void;
+  draft: WorkoutCardDraft;
+  onChange: (draft: WorkoutCardDraft) => void;
+  onRemove: () => void;
 }) {
-  const templateName = slot.movements?.name ?? "Template";
   const lookupId = draft.performedMovementId;
 
   const { data: previous, isLoading } = useQuery({
@@ -62,32 +81,6 @@ function ExerciseCard({
         reps: String(s.reps),
       })),
       note: previous.note ?? draft.note,
-    });
-  };
-
-  const replaceMovement = (movementId: string) => {
-    const movement = allMovements.find((m) => m.id === movementId);
-    if (!movement) return;
-    onChange({
-      ...draft,
-      performedMovementId: movement.id,
-      performedName: movement.name,
-      targetMuscle: movement.target_muscle,
-      isSubstituted: movement.id !== draft.templateMovementId,
-      sets: makeEmptySets(draft.defaultSets),
-      note: "",
-    });
-  };
-
-  const resetToTemplate = () => {
-    onChange({
-      ...draft,
-      performedMovementId: draft.templateMovementId,
-      performedName: templateName,
-      targetMuscle: slot.movements?.target_muscle ?? draft.targetMuscle,
-      isSubstituted: false,
-      sets: makeEmptySets(draft.defaultSets),
-      note: "",
     });
   };
 
@@ -113,16 +106,9 @@ function ExerciseCard({
           <h3 className="text-lg font-semibold text-zinc-100">
             {draft.performedName}
           </h3>
-          {draft.isSubstituted && (
-            <p className="mt-0.5 text-xs text-zinc-500">
-              Replacing: {templateName}
-            </p>
-          )}
-          <p className="mt-0.5 text-xs text-zinc-600">
-            {draft.defaultSets} sets planned · {draft.targetMuscle}
-          </p>
+          <p className="mt-0.5 text-xs text-zinc-600">{draft.targetMuscle}</p>
         </div>
-        <div className="flex shrink-0 flex-col gap-1">
+        <div className="flex shrink-0 gap-1">
           <button
             type="button"
             onClick={copyLastSession}
@@ -132,32 +118,15 @@ function ExerciseCard({
             <Copy className="h-3.5 w-3.5" />
             Copy Last
           </button>
-        </div>
-      </div>
-
-      <div className="mb-3 flex gap-2">
-        <select
-          value={draft.performedMovementId}
-          onChange={(e) => replaceMovement(e.target.value)}
-          className="min-w-0 flex-1 rounded-lg border border-zinc-700 bg-zinc-800 px-2 py-1.5 text-xs"
-          aria-label="Replace movement"
-        >
-          {allMovements.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.name}
-            </option>
-          ))}
-        </select>
-        {draft.isSubstituted && (
           <button
             type="button"
-            onClick={resetToTemplate}
-            className="flex items-center gap-1 rounded-lg border border-zinc-700 px-2.5 py-1.5 text-xs text-zinc-400"
-            title="Reset to template"
+            onClick={onRemove}
+            className="rounded-lg border border-zinc-700 p-1.5 text-zinc-400 hover:border-red-500/50 hover:text-red-400"
+            aria-label="Remove exercise"
           >
-            <RefreshCw className="h-3.5 w-3.5" />
+            <Trash2 className="h-3.5 w-3.5" />
           </button>
-        )}
+        </div>
       </div>
 
       <div className="mb-3 space-y-1 text-sm text-zinc-500">
@@ -186,20 +155,20 @@ function ExerciseCard({
             </span>
             <input
               type="number"
-              inputMode="decimal"
-              placeholder="kg"
-              value={set.weight_kg}
-              onChange={(e) => updateSet(index, "weight_kg", e.target.value)}
-              className="w-20 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-center text-base"
-            />
-            <span className="text-zinc-500">×</span>
-            <input
-              type="number"
               inputMode="numeric"
               placeholder="reps"
               value={set.reps}
               onChange={(e) => updateSet(index, "reps", e.target.value)}
               className="w-16 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-center text-base"
+            />
+            <span className="text-zinc-500">×</span>
+            <input
+              type="number"
+              inputMode="decimal"
+              placeholder="kg"
+              value={set.weight_kg}
+              onChange={(e) => updateSet(index, "weight_kg", e.target.value)}
+              className="w-20 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-center text-base"
             />
             <button
               type="button"
@@ -224,11 +193,92 @@ function ExerciseCard({
 
       <input
         type="text"
-        placeholder="Exercise note (e.g. felt too light)"
+        placeholder="Note"
         value={draft.note}
         onChange={(e) => onChange({ ...draft, note: e.target.value })}
-        className="mt-3 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm"
+        className="mt-3 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm placeholder:text-zinc-600"
       />
+    </div>
+  );
+}
+
+function MovementPicker({
+  movements,
+  onSelect,
+  onClose,
+}: {
+  movements: Movement[];
+  onSelect: (movement: Movement) => void;
+  onClose: () => void;
+}) {
+  const [search, setSearch] = useState("");
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const list = q
+      ? movements.filter(
+          (m) =>
+            m.name.toLowerCase().includes(q) ||
+            m.target_muscle.toLowerCase().includes(q)
+        )
+      : movements;
+    return [...list].sort((a, b) => a.name.localeCompare(b.name));
+  }, [movements, search]);
+
+  const grouped = useMemo(() => {
+    const map = new Map<string, Movement[]>();
+    for (const m of filtered) {
+      const group = map.get(m.target_muscle) ?? [];
+      group.push(m);
+      map.set(m.target_muscle, group);
+    }
+    return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
+  }, [filtered]);
+
+  return (
+    <div className="rounded-2xl border border-zinc-700 bg-zinc-900 p-4">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold text-zinc-200">Add exercise</h3>
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-lg p-1 text-zinc-500 hover:text-zinc-300"
+          aria-label="Close"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+      <input
+        type="search"
+        placeholder="Search movements..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="mb-3 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm"
+      />
+      <div className="max-h-64 space-y-3 overflow-y-auto">
+        {grouped.map(([muscle, items]) => (
+          <div key={muscle}>
+            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-zinc-500">
+              {muscle}
+            </p>
+            <div className="space-y-1">
+              {items.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => onSelect(m)}
+                  className="w-full rounded-lg px-3 py-2 text-left text-sm text-zinc-200 hover:bg-zinc-800"
+                >
+                  {m.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+        {filtered.length === 0 && (
+          <p className="text-sm text-zinc-500">No movements found.</p>
+        )}
+      </div>
     </div>
   );
 }
@@ -256,34 +306,38 @@ export default function ActiveWorkoutPage({
     queryFn: getAllMovements,
   });
 
-  const [drafts, setDrafts] = useState<Record<string, ExerciseDraft>>({});
+  const [cards, setCards] = useState<WorkoutCardDraft[]>([]);
+  const [cardsReady, setCardsReady] = useState(false);
+  const [showPicker, setShowPicker] = useState(false);
 
-  const getDraft = useCallback(
-    (slot: SplitExercise): ExerciseDraft => {
-      if (drafts[slot.id]) return drafts[slot.id];
-      return {
-        slotId: slot.id,
-        templateMovementId: slot.movement_id,
-        performedMovementId: slot.movement_id,
-        performedName: slot.movements?.name ?? "Unknown movement",
-        targetMuscle: slot.movements?.target_muscle ?? "Unknown",
-        defaultSets: slot.default_sets,
-        sets: makeEmptySets(slot.default_sets),
-        note: "",
-        isSubstituted: false,
-      };
-    },
-    [drafts]
-  );
+  useEffect(() => {
+    if (!templateQuery.data || cardsReady) return;
+    const initial = templateQuery.data
+      .filter((slot) => slot.movements)
+      .map((slot) => cardFromTemplate(slot));
+    setCards(initial);
+    setCardsReady(true);
+  }, [templateQuery.data, cardsReady]);
+
+  const updateCard = (cardId: string, draft: WorkoutCardDraft) => {
+    setCards((prev) => prev.map((c) => (c.cardId === cardId ? draft : c)));
+  };
+
+  const removeCard = (cardId: string) => {
+    setCards((prev) => prev.filter((c) => c.cardId !== cardId));
+  };
+
+  const addCard = (movement: Movement) => {
+    setCards((prev) => [...prev, cardFromMovement(movement)]);
+    setShowPicker(false);
+  };
 
   const saveMutation = useMutation({
     mutationFn: async () => {
       const session = await createWorkoutSession(splitId);
-      const template = templateQuery.data ?? [];
 
-      for (let i = 0; i < template.length; i++) {
-        const slot = template[i];
-        const draft = getDraft(slot);
+      for (let i = 0; i < cards.length; i++) {
+        const draft = cards[i];
         const validSets = draft.sets
           .filter((s) => s.weight_kg !== "" && s.reps)
           .map((s) => ({
@@ -293,20 +347,10 @@ export default function ActiveWorkoutPage({
 
         if (validSets.length === 0) continue;
 
-        let movementId = draft.performedMovementId;
-        const known = movementsQuery.data?.find((m) => m.id === movementId);
-        if (!known && draft.performedName.trim()) {
-          const created = await findOrCreateMovement(
-            draft.performedName,
-            draft.targetMuscle
-          );
-          movementId = created.id;
-        }
-
         await saveSessionExercise(
           session.id,
-          slot.id,
-          movementId,
+          draft.slotId,
+          draft.performedMovementId,
           i + 1,
           validSets,
           draft.note.trim() || null
@@ -317,6 +361,9 @@ export default function ActiveWorkoutPage({
   });
 
   const isRunSplit = splitQuery.data?.name === "Run";
+  const canFinish = cards.some((c) =>
+    c.sets.some((s) => s.weight_kg !== "" && s.reps)
+  );
 
   return (
     <MobileLayout>
@@ -349,23 +396,45 @@ export default function ActiveWorkoutPage({
       ) : (
         <>
           <div className="space-y-4">
-            {templateQuery.data?.filter((slot) => slot.movements).map((slot) => (
+            {cards.map((draft) => (
               <ExerciseCard
-                key={slot.id}
-                slot={slot}
-                draft={getDraft(slot)}
-                allMovements={movementsQuery.data ?? []}
-                onChange={(draft) =>
-                  setDrafts((prev) => ({ ...prev, [slot.id]: draft }))
-                }
+                key={draft.cardId}
+                draft={draft}
+                onChange={(updated) => updateCard(draft.cardId, updated)}
+                onRemove={() => removeCard(draft.cardId)}
               />
             ))}
+
+            {cards.length === 0 && cardsReady && (
+              <p className="text-center text-sm text-zinc-500">
+                No exercises yet. Add one below.
+              </p>
+            )}
           </div>
+
+          {showPicker ? (
+            <div className="mt-4">
+              <MovementPicker
+                movements={movementsQuery.data ?? []}
+                onSelect={addCard}
+                onClose={() => setShowPicker(false)}
+              />
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowPicker(true)}
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-zinc-700 py-3 text-sm font-medium text-zinc-300 hover:border-brand hover:text-brand"
+            >
+              <Plus className="h-4 w-4" />
+              Add exercise
+            </button>
+          )}
 
           <button
             type="button"
             onClick={() => saveMutation.mutate()}
-            disabled={saveMutation.isPending || !templateQuery.data?.length}
+            disabled={saveMutation.isPending || !canFinish}
             className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-brand py-4 text-lg font-semibold text-white shadow-lg shadow-brand/30 disabled:opacity-60"
           >
             <Check className="h-5 w-5" />
