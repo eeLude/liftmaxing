@@ -2,18 +2,17 @@
 
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { use, useEffect, useMemo, useState } from "react";
+import { use, useCallback, useState } from "react";
 import { ArrowLeft, Check, Copy, Plus, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { MobileLayout } from "@/components/MobileLayout";
 import { RunWorkoutForm } from "@/components/RunWorkoutForm";
+import { useActiveWorkout } from "@/lib/useActiveWorkout";
 import {
-  createWorkoutSession,
   getAllMovements,
   getPreviousMovementPerformance,
   getSplitById,
   getSplitTemplate,
-  saveSessionExercise,
 } from "@/lib/queries";
 import { formatPreviousSets } from "@/lib/utils";
 import { formatFiDate } from "@/lib/dates";
@@ -53,6 +52,27 @@ function cardFromMovement(movement: Movement): WorkoutCardDraft {
     sets: makeEmptySets(3),
     note: "",
   };
+}
+
+function SaveStatusText({
+  status,
+  hasPendingSave,
+}: {
+  status: "idle" | "saving" | "saved" | "error";
+  hasPendingSave: boolean;
+}) {
+  if (status === "saving" || hasPendingSave) {
+    return <span className="text-xs text-zinc-500">Saving…</span>;
+  }
+  if (status === "error") {
+    return (
+      <span className="text-xs text-amber-500">Offline — will retry</span>
+    );
+  }
+  if (status === "saved") {
+    return <span className="text-xs text-zinc-500">Saved</span>;
+  }
+  return null;
 }
 
 function ExerciseCard({
@@ -213,27 +233,25 @@ function MovementPicker({
 }) {
   const [search, setSearch] = useState("");
 
-  const filtered = useMemo(() => {
+  const filtered = movements.filter((m) => {
     const q = search.trim().toLowerCase();
-    const list = q
-      ? movements.filter(
-          (m) =>
-            m.name.toLowerCase().includes(q) ||
-            m.target_muscle.toLowerCase().includes(q)
-        )
-      : movements;
-    return [...list].sort((a, b) => a.name.localeCompare(b.name));
-  }, [movements, search]);
+    if (!q) return true;
+    return (
+      m.name.toLowerCase().includes(q) ||
+      m.target_muscle.toLowerCase().includes(q)
+    );
+  });
 
-  const grouped = useMemo(() => {
-    const map = new Map<string, Movement[]>();
-    for (const m of filtered) {
-      const group = map.get(m.target_muscle) ?? [];
-      group.push(m);
-      map.set(m.target_muscle, group);
-    }
-    return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
-  }, [filtered]);
+  const grouped = filtered.reduce<Map<string, Movement[]>>((map, m) => {
+    const group = map.get(m.target_muscle) ?? [];
+    group.push(m);
+    map.set(m.target_muscle, group);
+    return map;
+  }, new Map());
+
+  const sortedGroups = [...grouped.entries()].sort(([a], [b]) =>
+    a.localeCompare(b)
+  );
 
   return (
     <div className="rounded-2xl border border-zinc-700 bg-zinc-900 p-4">
@@ -256,7 +274,7 @@ function MovementPicker({
         className="mb-3 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm"
       />
       <div className="max-h-64 space-y-3 overflow-y-auto">
-        {grouped.map(([muscle, items]) => (
+        {sortedGroups.map(([muscle, items]) => (
           <div key={muscle}>
             <p className="mb-1 text-xs font-medium uppercase tracking-wide text-zinc-500">
               {muscle}
@@ -306,64 +324,43 @@ export default function ActiveWorkoutPage({
     queryFn: getAllMovements,
   });
 
-  const [cards, setCards] = useState<WorkoutCardDraft[]>([]);
-  const [cardsReady, setCardsReady] = useState(false);
+  const buildInitialCards = useCallback(() => {
+    return (
+      templateQuery.data
+        ?.filter((slot) => slot.movements)
+        .map((slot) => cardFromTemplate(slot)) ?? []
+    );
+  }, [templateQuery.data]);
+
+  const workout = useActiveWorkout({
+    splitId,
+    buildInitialCards,
+    templateReady: !!templateQuery.data,
+  });
+
   const [showPicker, setShowPicker] = useState(false);
+  const [startingFresh, setStartingFresh] = useState(false);
 
-  useEffect(() => {
-    if (!templateQuery.data || cardsReady) return;
-    const initial = templateQuery.data
-      .filter((slot) => slot.movements)
-      .map((slot) => cardFromTemplate(slot));
-    setCards(initial);
-    setCardsReady(true);
-  }, [templateQuery.data, cardsReady]);
-
-  const updateCard = (cardId: string, draft: WorkoutCardDraft) => {
-    setCards((prev) => prev.map((c) => (c.cardId === cardId ? draft : c)));
-  };
-
-  const removeCard = (cardId: string) => {
-    setCards((prev) => prev.filter((c) => c.cardId !== cardId));
-  };
-
-  const addCard = (movement: Movement) => {
-    setCards((prev) => [...prev, cardFromMovement(movement)]);
-    setShowPicker(false);
-  };
-
-  const saveMutation = useMutation({
-    mutationFn: async () => {
-      const session = await createWorkoutSession(splitId);
-
-      for (let i = 0; i < cards.length; i++) {
-        const draft = cards[i];
-        const validSets = draft.sets
-          .filter((s) => s.weight_kg !== "" && s.reps)
-          .map((s) => ({
-            weight_kg: parseFloat(s.weight_kg),
-            reps: parseInt(s.reps, 10),
-          }));
-
-        if (validSets.length === 0) continue;
-
-        await saveSessionExercise(
-          session.id,
-          draft.slotId,
-          draft.performedMovementId,
-          i + 1,
-          validSets,
-          draft.note.trim() || null
-        );
-      }
-    },
+  const finishMutation = useMutation({
+    mutationFn: () => workout.finishWorkout(),
     onSuccess: () => router.push("/"),
   });
 
+  const handleStartFresh = async () => {
+    setStartingFresh(true);
+    try {
+      await workout.startFresh();
+    } finally {
+      setStartingFresh(false);
+    }
+  };
+
+  const handleAddCard = (movement: Movement) => {
+    workout.addCard(cardFromMovement(movement));
+    setShowPicker(false);
+  };
+
   const isRunSplit = splitQuery.data?.name === "Run";
-  const canFinish = cards.some((c) =>
-    c.sets.some((s) => s.weight_kg !== "" && s.reps)
-  );
 
   return (
     <MobileLayout>
@@ -375,15 +372,37 @@ export default function ActiveWorkoutPage({
         >
           <ArrowLeft className="h-5 w-5" />
         </Link>
-        <div>
+        <div className="min-w-0 flex-1">
           <h1 className="text-xl font-bold text-zinc-100">
             {splitQuery.data?.name ?? "Workout"}
           </h1>
-          <p className="text-sm text-zinc-400">
-            {isRunSplit ? "Log your run" : "Log your sets"}
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm text-zinc-400">
+              {isRunSplit ? "Log your run" : "Log your sets"}
+            </p>
+            {!isRunSplit && workout.cardsReady && (
+              <SaveStatusText
+                status={workout.saveStatus}
+                hasPendingSave={workout.hasPendingSave}
+              />
+            )}
+          </div>
         </div>
       </header>
+
+      {workout.isResuming && !isRunSplit && (
+        <div className="mb-4 flex items-center justify-between gap-2 rounded-xl border border-brand/30 bg-brand/5 px-3 py-2 text-sm">
+          <span className="text-zinc-300">Resuming today&apos;s workout</span>
+          <button
+            type="button"
+            onClick={() => void handleStartFresh()}
+            disabled={startingFresh}
+            className="shrink-0 text-brand hover:underline disabled:opacity-50"
+          >
+            Start fresh
+          </button>
+        </div>
+      )}
 
       {templateQuery.isError && (
         <p className="text-sm text-red-400">
@@ -396,16 +415,16 @@ export default function ActiveWorkoutPage({
       ) : (
         <>
           <div className="space-y-4">
-            {cards.map((draft) => (
+            {workout.cards.map((draft) => (
               <ExerciseCard
                 key={draft.cardId}
                 draft={draft}
-                onChange={(updated) => updateCard(draft.cardId, updated)}
-                onRemove={() => removeCard(draft.cardId)}
+                onChange={(updated) => workout.updateCard(draft.cardId, updated)}
+                onRemove={() => void workout.removeCard(draft.cardId)}
               />
             ))}
 
-            {cards.length === 0 && cardsReady && (
+            {workout.cards.length === 0 && workout.cardsReady && (
               <p className="text-center text-sm text-zinc-500">
                 No exercises yet. Add one below.
               </p>
@@ -416,7 +435,7 @@ export default function ActiveWorkoutPage({
             <div className="mt-4">
               <MovementPicker
                 movements={movementsQuery.data ?? []}
-                onSelect={addCard}
+                onSelect={handleAddCard}
                 onClose={() => setShowPicker(false)}
               />
             </div>
@@ -433,17 +452,21 @@ export default function ActiveWorkoutPage({
 
           <button
             type="button"
-            onClick={() => saveMutation.mutate()}
-            disabled={saveMutation.isPending || !canFinish}
+            onClick={() => finishMutation.mutate()}
+            disabled={
+              finishMutation.isPending ||
+              !workout.hasSavedSets ||
+              !workout.cardsReady
+            }
             className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-brand py-4 text-lg font-semibold text-white shadow-lg shadow-brand/30 disabled:opacity-60"
           >
             <Check className="h-5 w-5" />
-            {saveMutation.isPending ? "Saving..." : "Finish Workout"}
+            {finishMutation.isPending ? "Finishing..." : "Finish Workout"}
           </button>
 
-          {saveMutation.isError && (
+          {finishMutation.isError && (
             <p className="mt-2 text-center text-sm text-red-500">
-              Failed to save. Check your connection.
+              Failed to finish. Check your connection.
             </p>
           )}
         </>

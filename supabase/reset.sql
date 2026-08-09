@@ -48,6 +48,7 @@ create table workout_sessions (
   user_id uuid not null references auth.users (id) on delete cascade default auth.uid(),
   date date not null default (timezone('utc', now()))::date,
   is_seeded boolean not null default false,
+  completed_at timestamptz,
   created_at timestamptz not null default now()
 );
 

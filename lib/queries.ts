@@ -4,6 +4,7 @@ import type {
   Movement,
   PreviousExerciseData,
   SplitExercise,
+  WorkoutCardDraft,
   WorkoutSession,
   WorkoutSplit,
 } from "@/types/database";
@@ -203,6 +204,7 @@ export async function createWorkoutSession(splitId: string): Promise<WorkoutSess
       date: today,
       is_seeded: false,
       user_id: user.id,
+      completed_at: null,
     })
     .select()
     .single();
@@ -241,6 +243,153 @@ export async function saveSessionExercise(
 
   const { error } = await supabase.from("workout_logs").insert(rows);
   if (error) throw error;
+}
+
+export async function getInProgressSession(
+  splitId: string
+): Promise<WorkoutSession | null> {
+  const today = toDateString(new Date());
+  const { data, error } = await supabase
+    .from("workout_sessions")
+    .select("*")
+    .eq("split_id", splitId)
+    .eq("date", today)
+    .is("completed_at", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+export async function loadSessionCards(
+  sessionId: string
+): Promise<WorkoutCardDraft[]> {
+  const { data, error } = await supabase
+    .from("session_exercises")
+    .select(
+      "id, template_slot_id, movement_id, sort_order, note, movements(name, target_muscle), workout_logs(weight_kg, reps, set_number)"
+    )
+    .eq("session_id", sessionId)
+    .order("sort_order");
+
+  if (error) throw error;
+
+  return (data ?? []).map((row) => {
+    const movement = row.movements as { name: string; target_muscle: string };
+    const logs = (row.workout_logs as {
+      weight_kg: number;
+      reps: number;
+      set_number: number;
+    }[])
+      .sort((a, b) => a.set_number - b.set_number)
+      .map((l) => ({
+        weight_kg: String(l.weight_kg),
+        reps: String(l.reps),
+      }));
+
+    const slotId = row.template_slot_id as string | null;
+    return {
+      cardId: slotId ?? row.id,
+      slotId,
+      sessionExerciseId: row.id,
+      performedMovementId: row.movement_id,
+      performedName: movement.name,
+      targetMuscle: movement.target_muscle,
+      sets: logs.length > 0 ? logs : [{ weight_kg: "", reps: "" }],
+      note: row.note ?? "",
+    };
+  });
+}
+
+function parseValidSets(draft: WorkoutCardDraft) {
+  return draft.sets
+    .filter((s) => s.weight_kg !== "" && s.reps !== "")
+    .map((s) => ({
+      weight_kg: parseFloat(s.weight_kg),
+      reps: parseInt(s.reps, 10),
+    }))
+    .filter((s) => !Number.isNaN(s.weight_kg) && !Number.isNaN(s.reps));
+}
+
+export async function upsertSessionExercise(
+  sessionId: string,
+  draft: WorkoutCardDraft,
+  sortOrder: number
+): Promise<string | null> {
+  const validSets = parseValidSets(draft);
+  if (validSets.length === 0) return draft.sessionExerciseId ?? null;
+
+  const note = draft.note.trim() || null;
+
+  if (draft.sessionExerciseId) {
+    const { error: updateError } = await supabase
+      .from("session_exercises")
+      .update({ note, sort_order: sortOrder, movement_id: draft.performedMovementId })
+      .eq("id", draft.sessionExerciseId);
+    if (updateError) throw updateError;
+
+    const { error: deleteError } = await supabase
+      .from("workout_logs")
+      .delete()
+      .eq("session_exercise_id", draft.sessionExerciseId);
+    if (deleteError) throw deleteError;
+
+    const rows = validSets.map((set, index) => ({
+      session_exercise_id: draft.sessionExerciseId!,
+      set_number: index + 1,
+      weight_kg: set.weight_kg,
+      reps: set.reps,
+    }));
+    const { error: insertError } = await supabase.from("workout_logs").insert(rows);
+    if (insertError) throw insertError;
+    return draft.sessionExerciseId;
+  }
+
+  const { data: sessionExercise, error: seError } = await supabase
+    .from("session_exercises")
+    .insert({
+      session_id: sessionId,
+      template_slot_id: draft.slotId,
+      movement_id: draft.performedMovementId,
+      sort_order: sortOrder,
+      note,
+    })
+    .select()
+    .single();
+  if (seError) throw seError;
+
+  const rows = validSets.map((set, index) => ({
+    session_exercise_id: sessionExercise.id,
+    set_number: index + 1,
+    weight_kg: set.weight_kg,
+    reps: set.reps,
+  }));
+  const { error: logError } = await supabase.from("workout_logs").insert(rows);
+  if (logError) throw logError;
+  return sessionExercise.id;
+}
+
+export async function deleteSessionExercise(sessionExerciseId: string) {
+  const { error } = await supabase
+    .from("session_exercises")
+    .delete()
+    .eq("id", sessionExerciseId);
+  if (error) throw error;
+}
+
+export async function completeWorkoutSession(sessionId: string) {
+  const { error } = await supabase
+    .from("workout_sessions")
+    .update({ completed_at: new Date().toISOString() })
+    .eq("id", sessionId);
+  if (error) throw error;
+}
+
+export async function abandonInProgressSession(splitId: string) {
+  const session = await getInProgressSession(splitId);
+  if (!session) return;
+  await completeWorkoutSession(session.id);
 }
 
 export type MovementProgressPoint = {

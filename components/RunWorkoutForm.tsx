@@ -2,15 +2,14 @@
 
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Check, Copy } from "lucide-react";
 import {
-  createWorkoutSession,
   getAllMovements,
   getPreviousMovementPerformance,
   getSplitTemplate,
-  saveSessionExercise,
 } from "@/lib/queries";
+import { useRunAutosave } from "@/lib/useActiveWorkout";
 import { formatFiDate } from "@/lib/dates";
 import { formatCardioSetLine, formatPreviousSets } from "@/lib/utils";
 
@@ -35,6 +34,27 @@ function buildRunNote(
   const trimmed = userNote.trim();
   if (trimmed && auto) return `${auto}. ${trimmed}`;
   return trimmed || auto || null;
+}
+
+function SaveStatusText({
+  status,
+  hasPendingSave,
+}: {
+  status: "idle" | "saving" | "saved" | "error";
+  hasPendingSave: boolean;
+}) {
+  if (status === "saving" || hasPendingSave) {
+    return <span className="text-xs text-zinc-500">Saving…</span>;
+  }
+  if (status === "error") {
+    return (
+      <span className="text-xs text-amber-500">Offline — will retry</span>
+    );
+  }
+  if (status === "saved") {
+    return <span className="text-xs text-zinc-500">Saved</span>;
+  }
+  return null;
 }
 
 export function RunWorkoutForm({ splitId }: { splitId: string }) {
@@ -63,6 +83,43 @@ export function RunWorkoutForm({ splitId }: { splitId: string }) {
   const [speed, setSpeed] = useState("");
   const [elevation, setElevation] = useState("");
   const [note, setNote] = useState("");
+  const [resumeApplied, setResumeApplied] = useState(false);
+
+  const slot = templateQuery.data?.[0];
+  const buildNote = useCallback(
+    () =>
+      buildRunNote(
+        speed,
+        elevation,
+        selectedMovement?.name ?? "",
+        note
+      ),
+    [speed, elevation, selectedMovement?.name, note]
+  );
+
+  const autosave = useRunAutosave({
+    splitId,
+    slotId: slot?.id ?? null,
+    movementId: selectedMovementId,
+    movementName: selectedMovement?.name ?? "Run",
+    targetMuscle: selectedMovement?.target_muscle ?? "Cardio",
+    duration,
+    distance,
+    speed,
+    elevation,
+    note,
+    buildNote,
+    templateReady: !!templateQuery.data && !!selectedMovementId,
+  });
+
+  useEffect(() => {
+    if (!autosave.resumeData || resumeApplied) return;
+    setDuration(autosave.resumeData.duration);
+    setDistance(autosave.resumeData.distance);
+    setNote(autosave.resumeData.note);
+    setMovementId(autosave.resumeData.movementId);
+    setResumeApplied(true);
+  }, [autosave.resumeData, resumeApplied]);
 
   const { data: previous, isLoading: previousLoading } = useQuery({
     queryKey: ["previous-performance", selectedMovementId],
@@ -78,46 +135,35 @@ export function RunWorkoutForm({ splitId }: { splitId: string }) {
     setNote(previous.note ?? "");
   };
 
-  const saveMutation = useMutation({
-    mutationFn: async () => {
-      const durationMin = parseInt(duration, 10);
-      if (!durationMin || durationMin <= 0) {
-        throw new Error("Duration required");
-      }
-
-      const slot = templateQuery.data?.[0];
-      const movement = selectedMovement;
-      if (!slot || !movement) throw new Error("Run template not found");
-
-      const distanceKm = distance.trim() ? parseFloat(distance) : 0;
-      const session = await createWorkoutSession(splitId);
-      const runNote = buildRunNote(
-        speed,
-        elevation,
-        movement.name,
-        note
-      );
-
-      await saveSessionExercise(
-        session.id,
-        slot.id,
-        movement.id,
-        1,
-        [{ weight_kg: distanceKm, reps: durationMin }],
-        runNote
-      );
-    },
+  const finishMutation = useMutation({
+    mutationFn: () => autosave.finishRun(),
     onSuccess: () => router.push("/"),
   });
 
-  const canSave = duration.trim() !== "" && parseInt(duration, 10) > 0;
-
   return (
     <div className="space-y-4">
+      {autosave.isResuming && (
+        <div className="flex items-center justify-between gap-2 rounded-xl border border-brand/30 bg-brand/5 px-3 py-2 text-sm">
+          <span className="text-zinc-300">Resuming today&apos;s run</span>
+          <SaveStatusText
+            status={autosave.saveStatus}
+            hasPendingSave={autosave.hasPendingSave}
+          />
+        </div>
+      )}
+
       <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-        <label className="mb-2 block text-sm font-medium text-zinc-400">
-          Run type
-        </label>
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <label className="block text-sm font-medium text-zinc-400">
+            Run type
+          </label>
+          {!autosave.isResuming && (
+            <SaveStatusText
+              status={autosave.saveStatus}
+              hasPendingSave={autosave.hasPendingSave}
+            />
+          )}
+        </div>
         <select
           value={selectedMovementId}
           onChange={(e) => setMovementId(e.target.value)}
@@ -234,17 +280,19 @@ export function RunWorkoutForm({ splitId }: { splitId: string }) {
 
       <button
         type="button"
-        onClick={() => saveMutation.mutate()}
-        disabled={saveMutation.isPending || !canSave}
+        onClick={() => finishMutation.mutate()}
+        disabled={
+          finishMutation.isPending || !autosave.canFinish || !autosave.ready
+        }
         className="flex w-full items-center justify-center gap-2 rounded-2xl bg-brand py-4 text-lg font-semibold text-white shadow-lg shadow-brand/30 disabled:opacity-60"
       >
         <Check className="h-5 w-5" />
-        {saveMutation.isPending ? "Saving..." : "Finish Run"}
+        {finishMutation.isPending ? "Finishing..." : "Finish Run"}
       </button>
 
-      {saveMutation.isError && (
+      {finishMutation.isError && (
         <p className="text-center text-sm text-red-500">
-          Failed to save. Check your connection.
+          Failed to finish. Check your connection.
         </p>
       )}
     </div>

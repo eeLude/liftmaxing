@@ -55,7 +55,7 @@ npm run dev
 
 ### Existing database (no full reset)
 
-Run **`supabase/migrate-v2.sql`**, then **`supabase/secure-rls.sql`**.
+Run **`supabase/migrate-v2.sql`**, then **`supabase/secure-rls.sql`**, then **`supabase/migrate-workout-cards.sql`**, then **`supabase/migrate-autosave.sql`**.
 
 ### SQL files
 
@@ -65,6 +65,7 @@ Run **`supabase/migrate-v2.sql`**, then **`supabase/secure-rls.sql`**.
 | `secure-rls.sql` | Auth + `user_id` columns + RLS (included in reset.sql) |
 | `migrate-v2.sql` | Incremental updates for old DBs |
 | `migrate-workout-cards.sql` | Nullable template slots + expanded movement catalog |
+| `migrate-autosave.sql` | `completed_at` on sessions for in-progress workout resume |
 | `seed-demo.sql` | Fake sample data (safe for git) |
 | `seed-history.example.sql` | Template for local personal import |
 | `seed-history.sql` | Your data — **local only, gitignored** |

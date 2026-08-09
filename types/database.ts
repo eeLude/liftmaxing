@@ -28,6 +28,7 @@ export type WorkoutSession = {
   user_id: string;
   date: string;
   is_seeded: boolean;
+  completed_at: string | null;
   created_at: string;
 };
 
@@ -164,6 +165,7 @@ export type SetInput = {
 export type WorkoutCardDraft = {
   cardId: string;
   slotId: string | null;
+  sessionExerciseId?: string | null;
   performedMovementId: string;
   performedName: string;
   targetMuscle: string;
