@@ -130,11 +130,13 @@ export function useActiveWorkout({
       setSaveStatus("saving");
       try {
         const sessionExerciseId = await upsertSessionExercise(sid, card, index + 1);
-        setCards((prev) =>
-          prev.map((c) =>
+        setCards((prev) => {
+          const next = prev.map((c) =>
             c.cardId === cardId ? { ...c, sessionExerciseId } : c
-          )
-        );
+          );
+          cardsRef.current = next;
+          return next;
+        });
         pendingCards.current.delete(cardId);
         updatePendingState();
         setSaveStatus("saved");
@@ -174,22 +176,34 @@ export function useActiveWorkout({
       clearTimeout(timer);
     }
     debounceTimers.current.clear();
-
-    const ids = [...pendingCards.current];
-    for (const cardId of ids) {
-      await saveCard(cardId);
-    }
+    pendingCards.current.clear();
+    updatePendingState();
 
     const sid = sessionIdRef.current;
-    if (sid) {
-      for (const card of cardsRef.current) {
-        if (cardHasValidSet(card)) {
-          const index = cardsRef.current.findIndex((c) => c.cardId === card.cardId);
-          await upsertSessionExercise(sid, card, index + 1);
-        }
+    if (!sid) return;
+
+    for (const card of [...cardsRef.current]) {
+      if (!cardHasValidSet(card)) continue;
+
+      const index = cardsRef.current.findIndex((c) => c.cardId === card.cardId);
+      const current = cardsRef.current[index];
+      if (!current) continue;
+
+      const sessionExerciseId = await upsertSessionExercise(
+        sid,
+        current,
+        index + 1
+      );
+      if (sessionExerciseId) {
+        cardsRef.current = cardsRef.current.map((c) =>
+          c.cardId === card.cardId ? { ...c, sessionExerciseId } : c
+        );
       }
     }
-  }, [saveCard]);
+
+    setCards([...cardsRef.current]);
+    if (sid) writeDraft(sid, cardsRef.current);
+  }, [updatePendingState]);
 
   useEffect(() => {
     if (!templateReady || initStarted.current) return;

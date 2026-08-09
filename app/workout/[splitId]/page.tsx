@@ -1,8 +1,8 @@
 "use client";
 
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { use, useCallback, useState } from "react";
+import { use, useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Check, Copy, Plus, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { MobileLayout } from "@/components/MobileLayout";
@@ -10,6 +10,7 @@ import { RunWorkoutForm } from "@/components/RunWorkoutForm";
 import { useActiveWorkout } from "@/lib/useActiveWorkout";
 import {
   getAllMovements,
+  getOrCreateMovement,
   getPreviousMovementPerformance,
   getSplitById,
   getSplitTemplate,
@@ -224,17 +225,52 @@ function ExerciseCard({
 
 function MovementPicker({
   movements,
+  muscleGroups,
   onSelect,
   onClose,
 }: {
   movements: Movement[];
+  muscleGroups: string[];
   onSelect: (movement: Movement) => void;
   onClose: () => void;
 }) {
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
+  const [targetMuscle, setTargetMuscle] = useState(muscleGroups[0] ?? "Chest");
+  const [createError, setCreateError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (muscleGroups.length > 0 && !muscleGroups.includes(targetMuscle)) {
+      setTargetMuscle(muscleGroups[0]);
+    }
+  }, [muscleGroups, targetMuscle]);
+
+  const trimmedSearch = search.trim();
+  const hasExactMatch = useMemo(
+    () =>
+      trimmedSearch.length > 0 &&
+      movements.some(
+        (m) => m.name.toLowerCase() === trimmedSearch.toLowerCase()
+      ),
+    [movements, trimmedSearch]
+  );
+  const showCreate = trimmedSearch.length > 0 && !hasExactMatch;
+
+  const createMutation = useMutation({
+    mutationFn: () => getOrCreateMovement(trimmedSearch, targetMuscle),
+    onSuccess: async (movement) => {
+      await queryClient.invalidateQueries({ queryKey: ["movements"] });
+      onSelect(movement);
+    },
+    onError: (error) => {
+      setCreateError(
+        error instanceof Error ? error.message : "Could not add exercise"
+      );
+    },
+  });
 
   const filtered = movements.filter((m) => {
-    const q = search.trim().toLowerCase();
+    const q = trimmedSearch.toLowerCase();
     if (!q) return true;
     return (
       m.name.toLowerCase().includes(q) ||
@@ -270,7 +306,10 @@ function MovementPicker({
         type="search"
         placeholder="Search movements..."
         value={search}
-        onChange={(e) => setSearch(e.target.value)}
+        onChange={(e) => {
+          setSearch(e.target.value);
+          setCreateError(null);
+        }}
         className="mb-3 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm"
       />
       <div className="max-h-64 space-y-3 overflow-y-auto">
@@ -293,10 +332,44 @@ function MovementPicker({
             </div>
           </div>
         ))}
-        {filtered.length === 0 && (
+        {filtered.length === 0 && !showCreate && (
           <p className="text-sm text-zinc-500">No movements found.</p>
         )}
       </div>
+
+      {showCreate && (
+        <div className="mt-4 space-y-3 border-t border-zinc-800 pt-4">
+          <p className="text-sm text-zinc-400">
+            Add &ldquo;{trimmedSearch}&rdquo; to your catalog
+          </p>
+          <select
+            value={targetMuscle}
+            onChange={(e) => setTargetMuscle(e.target.value)}
+            className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm"
+          >
+            {muscleGroups.map((muscle) => (
+              <option key={muscle} value={muscle}>
+                {muscle}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => {
+              setCreateError(null);
+              createMutation.mutate();
+            }}
+            disabled={createMutation.isPending || muscleGroups.length === 0}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+          >
+            <Plus className="h-4 w-4" />
+            {createMutation.isPending ? "Adding..." : `Add "${trimmedSearch}"`}
+          </button>
+          {createError && (
+            <p className="text-sm text-red-400">{createError}</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -359,6 +432,14 @@ export default function ActiveWorkoutPage({
     workout.addCard(cardFromMovement(movement));
     setShowPicker(false);
   };
+
+  const muscleGroups = useMemo(
+    () =>
+      [...new Set((movementsQuery.data ?? []).map((m) => m.target_muscle))].sort(
+        (a, b) => a.localeCompare(b)
+      ),
+    [movementsQuery.data]
+  );
 
   const isRunSplit = splitQuery.data?.name === "Run";
 
@@ -435,6 +516,7 @@ export default function ActiveWorkoutPage({
             <div className="mt-4">
               <MovementPicker
                 movements={movementsQuery.data ?? []}
+                muscleGroups={muscleGroups}
                 onSelect={handleAddCard}
                 onClose={() => setShowPicker(false)}
               />
@@ -466,7 +548,9 @@ export default function ActiveWorkoutPage({
 
           {finishMutation.isError && (
             <p className="mt-2 text-center text-sm text-red-500">
-              Failed to finish. Check your connection.
+              {finishMutation.error instanceof Error
+                ? finishMutation.error.message
+                : "Failed to finish. Check your connection."}
             </p>
           )}
         </>

@@ -51,6 +51,44 @@ export async function getAllMovements(): Promise<Movement[]> {
   return data ?? [];
 }
 
+export async function getOrCreateMovement(
+  name: string,
+  targetMuscle: string
+): Promise<Movement> {
+  const trimmed = name.trim();
+  if (!trimmed) throw new Error("Movement name is required");
+  if (!targetMuscle.trim()) throw new Error("Muscle group is required");
+
+  const { data: existing, error: lookupError } = await supabase
+    .from("movements")
+    .select("*")
+    .ilike("name", trimmed)
+    .maybeSingle();
+  if (lookupError) throw lookupError;
+  if (existing) return existing;
+
+  const { data, error } = await supabase
+    .from("movements")
+    .insert({ name: trimmed, target_muscle: targetMuscle.trim() })
+    .select()
+    .single();
+
+  if (error) {
+    if (error.code === "23505") {
+      const { data: raced, error: raceError } = await supabase
+        .from("movements")
+        .select("*")
+        .ilike("name", trimmed)
+        .maybeSingle();
+      if (raceError) throw raceError;
+      if (raced) return raced;
+    }
+    throw error;
+  }
+
+  return data;
+}
+
 export async function getMovementsWithHistory(): Promise<Movement[]> {
   const { data, error } = await supabase
     .from("workout_logs")
@@ -321,43 +359,102 @@ export async function upsertSessionExercise(
   if (validSets.length === 0) return draft.sessionExerciseId ?? null;
 
   const note = draft.note.trim() || null;
+  let sessionExerciseId = draft.sessionExerciseId ?? null;
 
-  if (draft.sessionExerciseId) {
+  if (!sessionExerciseId && draft.slotId) {
+    const { data: existing, error: lookupError } = await supabase
+      .from("session_exercises")
+      .select("id")
+      .eq("session_id", sessionId)
+      .eq("template_slot_id", draft.slotId)
+      .maybeSingle();
+    if (lookupError) throw lookupError;
+    sessionExerciseId = existing?.id ?? null;
+  }
+
+  if (!sessionExerciseId && !draft.slotId) {
+    const { data: byCardId, error: byCardError } = await supabase
+      .from("session_exercises")
+      .select("id")
+      .eq("session_id", sessionId)
+      .eq("id", draft.cardId)
+      .maybeSingle();
+    if (byCardError) throw byCardError;
+    sessionExerciseId = byCardId?.id ?? null;
+
+    if (!sessionExerciseId) {
+      const { data: customMatches, error: customError } = await supabase
+        .from("session_exercises")
+        .select("id")
+        .eq("session_id", sessionId)
+        .eq("movement_id", draft.performedMovementId)
+        .is("template_slot_id", null);
+      if (customError) throw customError;
+      if (customMatches?.length === 1) {
+        sessionExerciseId = customMatches[0].id;
+      }
+    }
+  }
+
+  if (sessionExerciseId) {
     const { error: updateError } = await supabase
       .from("session_exercises")
       .update({ note, sort_order: sortOrder, movement_id: draft.performedMovementId })
-      .eq("id", draft.sessionExerciseId);
+      .eq("id", sessionExerciseId);
     if (updateError) throw updateError;
 
     const { error: deleteError } = await supabase
       .from("workout_logs")
       .delete()
-      .eq("session_exercise_id", draft.sessionExerciseId);
+      .eq("session_exercise_id", sessionExerciseId);
     if (deleteError) throw deleteError;
 
     const rows = validSets.map((set, index) => ({
-      session_exercise_id: draft.sessionExerciseId!,
+      session_exercise_id: sessionExerciseId!,
       set_number: index + 1,
       weight_kg: set.weight_kg,
       reps: set.reps,
     }));
     const { error: insertError } = await supabase.from("workout_logs").insert(rows);
     if (insertError) throw insertError;
-    return draft.sessionExerciseId;
+    return sessionExerciseId;
   }
 
   const { data: sessionExercise, error: seError } = await supabase
     .from("session_exercises")
     .insert({
       session_id: sessionId,
-      template_slot_id: draft.slotId,
+      template_slot_id: draft.slotId ?? null,
       movement_id: draft.performedMovementId,
       sort_order: sortOrder,
       note,
     })
     .select()
     .single();
-  if (seError) throw seError;
+  if (seError) {
+    if (seError.code === "23502" && !draft.slotId) {
+      throw new Error(
+        "Could not save extra exercise. Run supabase/migrate-workout-cards.sql in Supabase."
+      );
+    }
+    if (seError.code === "23505" && draft.slotId) {
+      const { data: raced, error: raceError } = await supabase
+        .from("session_exercises")
+        .select("id")
+        .eq("session_id", sessionId)
+        .eq("template_slot_id", draft.slotId)
+        .maybeSingle();
+      if (raceError) throw raceError;
+      if (raced) {
+        return upsertSessionExercise(
+          sessionId,
+          { ...draft, sessionExerciseId: raced.id },
+          sortOrder
+        );
+      }
+    }
+    throw seError;
+  }
 
   const rows = validSets.map((set, index) => ({
     session_exercise_id: sessionExercise.id,
@@ -383,7 +480,14 @@ export async function completeWorkoutSession(sessionId: string) {
     .from("workout_sessions")
     .update({ completed_at: new Date().toISOString() })
     .eq("id", sessionId);
-  if (error) throw error;
+  if (error) {
+    if (error.code === "42703") {
+      throw new Error(
+        "Could not finish workout. Run supabase/migrate-autosave.sql in Supabase."
+      );
+    }
+    throw error;
+  }
 }
 
 export async function abandonInProgressSession(splitId: string) {
