@@ -1,8 +1,8 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
-import { use, useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, use, useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Check, Copy, Plus, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { MobileLayout } from "@/components/MobileLayout";
@@ -14,9 +14,10 @@ import {
   getPreviousMovementPerformance,
   getSplitById,
   getSplitTemplate,
+  getWorkoutSessionForDate,
 } from "@/lib/queries";
 import { formatPreviousSets } from "@/lib/utils";
-import { formatFiDate } from "@/lib/dates";
+import { formatFiDate, isFutureDate, toDateString } from "@/lib/dates";
 import type { Movement, SetInput, WorkoutCardDraft } from "@/types/database";
 
 const emptySet = (): SetInput => ({ weight_kg: "", reps: "" });
@@ -379,8 +380,25 @@ export default function ActiveWorkoutPage({
 }: {
   params: Promise<{ splitId: string }>;
 }) {
+  return (
+    <Suspense fallback={<p className="p-4 text-center text-zinc-500">Loading...</p>}>
+      <ActiveWorkoutContent params={params} />
+    </Suspense>
+  );
+}
+
+function ActiveWorkoutContent({
+  params,
+}: {
+  params: Promise<{ splitId: string }>;
+}) {
   const { splitId } = use(params);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
+  const dateParam = searchParams.get("date");
+  const workoutDate =
+    dateParam && !isFutureDate(dateParam) ? dateParam : toDateString(new Date());
 
   const splitQuery = useQuery({
     queryKey: ["split", splitId],
@@ -397,6 +415,25 @@ export default function ActiveWorkoutPage({
     queryFn: getAllMovements,
   });
 
+  const sessionForDateQuery = useQuery({
+    queryKey: ["workout-session-for-date", workoutDate],
+    queryFn: () => getWorkoutSessionForDate(workoutDate),
+  });
+
+  useEffect(() => {
+    if (!sessionForDateQuery.data) return;
+    if (sessionForDateQuery.data.split_id !== splitId) {
+      router.replace(
+        `/workout/${sessionForDateQuery.data.split_id}?date=${workoutDate}`
+      );
+    }
+  }, [sessionForDateQuery.data, splitId, workoutDate, router]);
+
+  const loggerReady =
+    sessionForDateQuery.isSuccess &&
+    (!sessionForDateQuery.data ||
+      sessionForDateQuery.data.split_id === splitId);
+
   const buildInitialCards = useCallback(() => {
     return (
       templateQuery.data
@@ -407,8 +444,9 @@ export default function ActiveWorkoutPage({
 
   const workout = useActiveWorkout({
     splitId,
+    workoutDate,
     buildInitialCards,
-    templateReady: !!templateQuery.data,
+    templateReady: !!templateQuery.data && loggerReady,
   });
 
   const [showPicker, setShowPicker] = useState(false);
@@ -416,7 +454,14 @@ export default function ActiveWorkoutPage({
 
   const finishMutation = useMutation({
     mutationFn: () => workout.finishWorkout(),
-    onSuccess: () => router.push("/"),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["workout-days"] });
+      await queryClient.invalidateQueries({ queryKey: ["workout-days-range"] });
+      await queryClient.invalidateQueries({
+        queryKey: ["workout-session-for-date"],
+      });
+      router.push("/");
+    },
   });
 
   const handleStartFresh = async () => {
@@ -443,11 +488,19 @@ export default function ActiveWorkoutPage({
 
   const isRunSplit = splitQuery.data?.name === "Run";
 
+  if (sessionForDateQuery.isLoading || !loggerReady) {
+    return (
+      <MobileLayout>
+        <p className="text-center text-zinc-500">Loading workout...</p>
+      </MobileLayout>
+    );
+  }
+
   return (
     <MobileLayout>
       <header className="mb-4 flex items-center gap-3">
         <Link
-          href="/workout"
+          href="/"
           className="rounded-full p-2 hover:bg-zinc-800"
           aria-label="Back"
         >
@@ -459,7 +512,8 @@ export default function ActiveWorkoutPage({
           </h1>
           <div className="flex items-center gap-2">
             <p className="text-sm text-zinc-400">
-              {isRunSplit ? "Log your run" : "Log your sets"}
+              {formatFiDate(workoutDate)}
+              {isRunSplit ? " · Run" : " · Log sets"}
             </p>
             {!isRunSplit && workout.cardsReady && (
               <SaveStatusText
@@ -473,7 +527,9 @@ export default function ActiveWorkoutPage({
 
       {workout.isResuming && !isRunSplit && (
         <div className="mb-4 flex items-center justify-between gap-2 rounded-xl border border-brand/30 bg-brand/5 px-3 py-2 text-sm">
-          <span className="text-zinc-300">Resuming today&apos;s workout</span>
+          <span className="text-zinc-300">
+            Resuming workout · {formatFiDate(workoutDate)}
+          </span>
           <button
             type="button"
             onClick={() => void handleStartFresh()}
@@ -492,7 +548,7 @@ export default function ActiveWorkoutPage({
       )}
 
       {isRunSplit ? (
-        <RunWorkoutForm splitId={splitId} />
+        <RunWorkoutForm splitId={splitId} workoutDate={workoutDate} />
       ) : (
         <>
           <div className="space-y-4">

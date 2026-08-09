@@ -226,8 +226,10 @@ export async function getPreviousMovementPerformance(
   };
 }
 
-export async function createWorkoutSession(splitId: string): Promise<WorkoutSession> {
-  const today = toDateString(new Date());
+export async function createWorkoutSession(
+  splitId: string,
+  date: string = toDateString(new Date())
+): Promise<WorkoutSession> {
   const {
     data: { user },
     error: authError,
@@ -239,7 +241,7 @@ export async function createWorkoutSession(splitId: string): Promise<WorkoutSess
     .from("workout_sessions")
     .insert({
       split_id: splitId,
-      date: today,
+      date,
       is_seeded: false,
       user_id: user.id,
       completed_at: null,
@@ -284,20 +286,43 @@ export async function saveSessionExercise(
 }
 
 export async function getInProgressSession(
-  splitId: string
+  splitId: string,
+  date: string = toDateString(new Date())
 ): Promise<WorkoutSession | null> {
-  const today = toDateString(new Date());
   const { data, error } = await supabase
     .from("workout_sessions")
     .select("*")
     .eq("split_id", splitId)
-    .eq("date", today)
+    .eq("date", date)
     .is("completed_at", null)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
   if (error) throw error;
   return data;
+}
+
+export type WorkoutSessionWithSplit = WorkoutSession & { splitName: string };
+
+export async function getWorkoutSessionForDate(
+  date: string
+): Promise<WorkoutSessionWithSplit | null> {
+  const { data, error } = await supabase
+    .from("workout_sessions")
+    .select("*, workout_splits(name)")
+    .eq("date", date)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  const { workout_splits, ...session } = data as WorkoutSession & {
+    workout_splits: { name: string };
+  };
+  return {
+    ...session,
+    splitName: workout_splits.name,
+  };
 }
 
 export async function loadSessionCards(
@@ -476,6 +501,14 @@ export async function deleteSessionExercise(sessionExerciseId: string) {
 }
 
 export async function completeWorkoutSession(sessionId: string) {
+  const { data: existing, error: readError } = await supabase
+    .from("workout_sessions")
+    .select("completed_at")
+    .eq("id", sessionId)
+    .maybeSingle();
+  if (readError) throw readError;
+  if (existing?.completed_at) return;
+
   const { error } = await supabase
     .from("workout_sessions")
     .update({ completed_at: new Date().toISOString() })
@@ -490,8 +523,11 @@ export async function completeWorkoutSession(sessionId: string) {
   }
 }
 
-export async function abandonInProgressSession(splitId: string) {
-  const session = await getInProgressSession(splitId);
+export async function abandonInProgressSession(
+  splitId: string,
+  date: string = toDateString(new Date())
+) {
+  const session = await getInProgressSession(splitId, date);
   if (!session) return;
   await completeWorkoutSession(session.id);
 }
@@ -611,8 +647,57 @@ export async function getWeeklyMuscleVolume(): Promise<MuscleVolume[]> {
 export type WorkoutDay = {
   date: string;
   sessionId: string;
+  splitId: string;
   splitName: string;
+  isComplete: boolean;
 };
+
+function mapWorkoutSessionRows(
+  rows: {
+    id: string;
+    date: string;
+    split_id: string;
+    completed_at: string | null;
+    workout_splits: { name: string };
+  }[]
+): WorkoutDay[] {
+  const byDate = new Map<string, WorkoutDay>();
+  for (const row of rows) {
+    if (byDate.has(row.date)) continue;
+    byDate.set(row.date, {
+      date: row.date,
+      sessionId: row.id,
+      splitId: row.split_id,
+      splitName: row.workout_splits.name,
+      isComplete: row.completed_at != null,
+    });
+  }
+  return Array.from(byDate.values());
+}
+
+export async function getWorkoutDaysInRange(
+  start: string,
+  end: string
+): Promise<WorkoutDay[]> {
+  const { data, error } = await supabase
+    .from("workout_sessions")
+    .select("id, date, split_id, completed_at, workout_splits(name)")
+    .gte("date", start)
+    .lte("date", end)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+
+  return mapWorkoutSessionRows(
+    (data ?? []) as {
+      id: string;
+      date: string;
+      split_id: string;
+      completed_at: string | null;
+      workout_splits: { name: string };
+    }[]
+  );
+}
 
 export async function getWorkoutDaysInMonth(
   year: number,
@@ -621,21 +706,7 @@ export async function getWorkoutDaysInMonth(
   const start = `${year}-${String(month).padStart(2, "0")}-01`;
   const lastDay = new Date(year, month, 0).getDate();
   const end = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
-
-  const { data, error } = await supabase
-    .from("workout_sessions")
-    .select("id, date, workout_splits(name)")
-    .gte("date", start)
-    .lte("date", end)
-    .order("date");
-
-  if (error) throw error;
-
-  return (data ?? []).map((row) => ({
-    date: row.date,
-    sessionId: row.id,
-    splitName: (row.workout_splits as { name: string }).name,
-  }));
+  return getWorkoutDaysInRange(start, end);
 }
 
 export type SessionSummaryExercise = {

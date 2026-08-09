@@ -6,8 +6,8 @@ import {
   completeWorkoutSession,
   createWorkoutSession,
   deleteSessionExercise,
+  getWorkoutSessionForDate,
   loadSessionCards,
-  getInProgressSession,
   upsertSessionExercise,
 } from "@/lib/queries";
 import type { WorkoutCardDraft } from "@/types/database";
@@ -81,12 +81,14 @@ function cardHasValidSet(card: WorkoutCardDraft) {
 
 type UseActiveWorkoutOptions = {
   splitId: string;
+  workoutDate: string;
   buildInitialCards: () => WorkoutCardDraft[];
   templateReady: boolean;
 };
 
 export function useActiveWorkout({
   splitId,
+  workoutDate,
   buildInitialCards,
   templateReady,
 }: UseActiveWorkoutOptions) {
@@ -102,6 +104,7 @@ export function useActiveWorkout({
   const debounceTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const pendingCards = useRef<Set<string>>(new Set());
   const initStarted = useRef(false);
+  const initKey = useRef("");
 
   cardsRef.current = cards;
   sessionIdRef.current = sessionId;
@@ -206,22 +209,25 @@ export function useActiveWorkout({
   }, [updatePendingState]);
 
   useEffect(() => {
-    if (!templateReady || initStarted.current) return;
+    if (!templateReady) return;
+    const key = `${splitId}:${workoutDate}`;
+    if (initStarted.current && initKey.current === key) return;
     initStarted.current = true;
+    initKey.current = key;
 
     (async () => {
       try {
-        const existing = await getInProgressSession(splitId);
+        const sessionForDate = await getWorkoutSessionForDate(workoutDate);
         let sid: string;
         let resumed = false;
         let loaded: WorkoutCardDraft[] = [];
 
-        if (existing) {
-          sid = existing.id;
+        if (sessionForDate) {
+          sid = sessionForDate.id;
           resumed = true;
           loaded = await loadSessionCards(sid);
         } else {
-          const session = await createWorkoutSession(splitId);
+          const session = await createWorkoutSession(splitId, workoutDate);
           sid = session.id;
         }
 
@@ -243,7 +249,7 @@ export function useActiveWorkout({
         setCardsReady(true);
       }
     })();
-  }, [splitId, templateReady, buildInitialCards]);
+  }, [splitId, workoutDate, templateReady, buildInitialCards]);
 
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
@@ -315,15 +321,15 @@ export function useActiveWorkout({
   const startFresh = useCallback(async () => {
     await flushSaves();
     if (sessionIdRef.current) clearDraft(sessionIdRef.current);
-    await abandonInProgressSession(splitId);
-    const session = await createWorkoutSession(splitId);
+    await abandonInProgressSession(splitId, workoutDate);
+    const session = await createWorkoutSession(splitId, workoutDate);
     const initial = buildInitialCards();
     setSessionId(session.id);
     setIsResuming(false);
     setCards(initial);
     writeDraft(session.id, initial);
     setSaveStatus("idle");
-  }, [splitId, buildInitialCards, flushSaves]);
+  }, [splitId, workoutDate, buildInitialCards, flushSaves]);
 
   const finishWorkout = useCallback(async () => {
     const sid = sessionIdRef.current;
@@ -353,6 +359,7 @@ export function useActiveWorkout({
 
 export function useRunAutosave({
   splitId,
+  workoutDate,
   slotId,
   movementId,
   movementName,
@@ -366,6 +373,7 @@ export function useRunAutosave({
   templateReady,
 }: {
   splitId: string;
+  workoutDate: string;
   slotId: string | null;
   movementId: string;
   movementName: string;
@@ -389,6 +397,7 @@ export function useRunAutosave({
   const sessionIdRef = useRef(sessionId);
   const sessionExerciseIdRef = useRef(sessionExerciseId);
   const initStarted = useRef(false);
+  const initKey = useRef("");
 
   sessionIdRef.current = sessionId;
   sessionExerciseIdRef.current = sessionExerciseId;
@@ -465,16 +474,19 @@ export function useRunAutosave({
   } | null>(null);
 
   useEffect(() => {
-    if (!templateReady || !movementId || initStarted.current) return;
+    if (!templateReady || !movementId) return;
+    const key = `${splitId}:${workoutDate}:${movementId}`;
+    if (initStarted.current && initKey.current === key) return;
     initStarted.current = true;
+    initKey.current = key;
 
     (async () => {
       try {
-        const existing = await getInProgressSession(splitId);
+        const sessionForDate = await getWorkoutSessionForDate(workoutDate);
         let sid: string;
 
-        if (existing) {
-          sid = existing.id;
+        if (sessionForDate) {
+          sid = sessionForDate.id;
           setIsResuming(true);
           const cards = await loadSessionCards(sid);
           const runCard = cards[0];
@@ -493,7 +505,7 @@ export function useRunAutosave({
             });
           }
         } else {
-          const session = await createWorkoutSession(splitId);
+          const session = await createWorkoutSession(splitId, workoutDate);
           sid = session.id;
         }
 
@@ -504,7 +516,7 @@ export function useRunAutosave({
         setReady(true);
       }
     })();
-  }, [splitId, templateReady, movementId]);
+  }, [splitId, workoutDate, templateReady, movementId]);
 
   useEffect(() => {
     if (!ready || !sessionId) return;

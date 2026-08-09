@@ -3,52 +3,22 @@
 import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useMemo, useState } from "react";
+import { getWorkoutDaysInMonth, type WorkoutDay } from "@/lib/queries";
 import {
-  getWorkoutDaysInMonth,
-  getWorkoutSessionSummary,
-} from "@/lib/queries";
-import { FI_WEEKDAYS, formatFiDate, formatFiMonthYear } from "@/lib/dates";
+  FI_WEEKDAYS,
+  formatFiMonthYear,
+  isFutureDate,
+  toDateString,
+} from "@/lib/dates";
 
-function DaySummary({ sessionId }: { sessionId: string }) {
-  const { data, isLoading } = useQuery({
-    queryKey: ["session-summary", sessionId],
-    queryFn: () => getWorkoutSessionSummary(sessionId),
-  });
-
-  if (isLoading) {
-    return <p className="mt-3 text-sm text-zinc-500">Loading...</p>;
-  }
-  if (!data) return null;
-
-  return (
-    <div className="mt-4 rounded-xl border border-zinc-700 bg-zinc-800/50 p-4">
-      <p className="text-sm font-semibold text-zinc-100">
-        {data.splitName} · {formatFiDate(data.date)}
-      </p>
-      <ul className="mt-3 space-y-2">
-        {data.exercises.map((ex, i) => (
-          <li key={i} className="text-sm">
-            <span className="font-medium text-zinc-300">{ex.name}</span>
-            {ex.setsSummary && (
-              <span className="ml-1 text-zinc-500">{ex.setsSummary}</span>
-            )}
-            {ex.note && (
-              <p className="text-xs italic text-zinc-600">&ldquo;{ex.note}&rdquo;</p>
-            )}
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-export function WorkoutCalendar() {
+export function WorkoutCalendar({
+  onDayAction,
+}: {
+  onDayAction: (date: string, workout: WorkoutDay | null) => void;
+}) {
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth() + 1);
-  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(
-    null
-  );
 
   const { data: workoutDays } = useQuery({
     queryKey: ["workout-days", year, month],
@@ -56,9 +26,9 @@ export function WorkoutCalendar() {
   });
 
   const daysByDate = useMemo(() => {
-    const map = new Map<string, { sessionId: string; splitName: string }>();
+    const map = new Map<string, WorkoutDay>();
     for (const d of workoutDays ?? []) {
-      map.set(d.date, { sessionId: d.sessionId, splitName: d.splitName });
+      map.set(d.date, d);
     }
     return map;
   }, [workoutDays]);
@@ -78,7 +48,6 @@ export function WorkoutCalendar() {
       setYear((y) => y - 1);
       setMonth(12);
     } else setMonth((m) => m - 1);
-    setSelectedSessionId(null);
   };
 
   const nextMonth = () => {
@@ -86,7 +55,6 @@ export function WorkoutCalendar() {
       setYear((y) => y + 1);
       setMonth(1);
     } else setMonth((m) => m + 1);
-    setSelectedSessionId(null);
   };
 
   return (
@@ -128,31 +96,20 @@ export function WorkoutCalendar() {
           }
           const iso = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
           const workout = daysByDate.get(iso);
-          const isSelected = workout?.sessionId === selectedSessionId;
-          const isToday =
-            day === today.getDate() &&
-            month === today.getMonth() + 1 &&
-            year === today.getFullYear();
+          const isToday = iso === toDateString(today);
+          const isFuture = isFutureDate(iso);
 
           return (
             <button
               key={iso}
               type="button"
-              disabled={!workout}
-              onClick={() =>
-                setSelectedSessionId(
-                  workout?.sessionId === selectedSessionId
-                    ? null
-                    : workout?.sessionId ?? null
-                )
-              }
+              disabled={isFuture}
+              onClick={() => onDayAction(iso, workout ?? null)}
               className={`relative flex aspect-square flex-col items-center justify-center rounded-lg text-sm transition ${
-                workout
-                  ? "cursor-pointer hover:bg-zinc-800"
-                  : "cursor-default text-zinc-600"
-              } ${isSelected ? "bg-brand/20 ring-1 ring-brand" : ""} ${
-                isToday ? "font-bold text-brand" : "text-zinc-300"
-              }`}
+                isFuture
+                  ? "cursor-not-allowed text-zinc-700"
+                  : "cursor-pointer hover:bg-zinc-800"
+              } ${isToday ? "font-bold text-brand" : "text-zinc-300"}`}
             >
               {day}
               {workout && (
@@ -162,8 +119,6 @@ export function WorkoutCalendar() {
           );
         })}
       </div>
-
-      {selectedSessionId && <DaySummary sessionId={selectedSessionId} />}
     </div>
   );
 }

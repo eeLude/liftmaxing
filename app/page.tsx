@@ -1,15 +1,16 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import Link from "next/link";
-import { Dumbbell } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { MobileLayout } from "@/components/MobileLayout";
+import { WorkoutContributionGraph } from "@/components/WorkoutContributionGraph";
 import { WorkoutCalendar } from "@/components/WorkoutCalendar";
 import { BodyWeightChart } from "@/components/charts/BodyWeightChart";
 import { ProgressiveOverloadChart } from "@/components/charts/ProgressiveOverloadChart";
 import { HealthTrendChart } from "@/components/charts/HealthTrendChart";
 import { MuscleVolumeChart } from "@/components/charts/MuscleVolumeChart";
 import { WeeklyTrainingVolumeChart } from "@/components/charts/WeeklyTrainingVolumeChart";
+import type { WorkoutDay } from "@/lib/queries";
 import {
   getHealthLogs,
   getMovementsWithHistory,
@@ -18,6 +19,7 @@ import {
 } from "@/lib/queries";
 
 export default function DashboardPage() {
+  const router = useRouter();
   const movementsQuery = useQuery({
     queryKey: ["movements-with-history"],
     queryFn: getMovementsWithHistory,
@@ -40,6 +42,14 @@ export default function DashboardPage() {
 
   const hasCalories = (healthQuery.data ?? []).some((l) => l.calories != null);
 
+  const handleDayAction = (date: string, workout: WorkoutDay | null) => {
+    if (workout) {
+      router.push(`/workout/${workout.splitId}?date=${date}`);
+    } else {
+      router.push(`/workout?date=${date}`);
+    }
+  };
+
   return (
     <MobileLayout>
       <header className="mb-6">
@@ -47,19 +57,21 @@ export default function DashboardPage() {
         <p className="text-sm text-zinc-400">Track strength, volume & bodyweight</p>
       </header>
 
-      <Link
-        href="/workout"
-        className="mb-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-brand py-4 text-lg font-semibold text-white shadow-lg shadow-brand/30 transition active:scale-[0.98]"
-      >
-        <Dumbbell className="h-6 w-6" />
-        Start Today&apos;s Workout
-      </Link>
-
       <section className="mb-6 rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-400">
+          Training Activity
+        </h2>
+        <WorkoutContributionGraph />
+      </section>
+
+      <section className="mb-6 rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+        <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-zinc-400">
           Workout Calendar
         </h2>
-        <WorkoutCalendar />
+        <p className="mb-3 text-xs text-zinc-500">
+          Tap a day to log or edit that workout
+        </p>
+        <WorkoutCalendar onDayAction={handleDayAction} />
       </section>
 
       <section className="mb-6 rounded-2xl border border-zinc-800 bg-zinc-900 p-4">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Check, Copy } from "lucide-react";
@@ -57,8 +57,15 @@ function SaveStatusText({
   return null;
 }
 
-export function RunWorkoutForm({ splitId }: { splitId: string }) {
+export function RunWorkoutForm({
+  splitId,
+  workoutDate,
+}: {
+  splitId: string;
+  workoutDate: string;
+}) {
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   const templateQuery = useQuery({
     queryKey: ["split-template", splitId],
@@ -99,6 +106,7 @@ export function RunWorkoutForm({ splitId }: { splitId: string }) {
 
   const autosave = useRunAutosave({
     splitId,
+    workoutDate,
     slotId: slot?.id ?? null,
     movementId: selectedMovementId,
     movementName: selectedMovement?.name ?? "Run",
@@ -137,14 +145,23 @@ export function RunWorkoutForm({ splitId }: { splitId: string }) {
 
   const finishMutation = useMutation({
     mutationFn: () => autosave.finishRun(),
-    onSuccess: () => router.push("/"),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["workout-days"] });
+      await queryClient.invalidateQueries({ queryKey: ["workout-days-range"] });
+      await queryClient.invalidateQueries({
+        queryKey: ["workout-session-for-date"],
+      });
+      router.push("/");
+    },
   });
 
   return (
     <div className="space-y-4">
       {autosave.isResuming && (
         <div className="flex items-center justify-between gap-2 rounded-xl border border-brand/30 bg-brand/5 px-3 py-2 text-sm">
-          <span className="text-zinc-300">Resuming today&apos;s run</span>
+          <span className="text-zinc-300">
+            Resuming workout · {formatFiDate(workoutDate)}
+          </span>
           <SaveStatusText
             status={autosave.saveStatus}
             hasPendingSave={autosave.hasPendingSave}
