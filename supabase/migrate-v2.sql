@@ -1,5 +1,5 @@
 -- Incremental migration for existing DBs (no full reset required)
--- Run in Supabase SQL Editor. Use seed-demo.sql or local seed-history.sql if needed.
+-- Run migrate-v2.sql, then secure-rls.sql, then optional seed scripts.
 
 alter table workout_sessions
   add column if not exists is_seeded boolean not null default false;

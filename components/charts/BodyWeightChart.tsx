@@ -5,11 +5,11 @@ import {
   CartesianGrid,
   Line,
   LineChart,
-  ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
+import { ChartContainer } from "@/components/charts/ChartContainer";
 import { formatFiDate } from "@/lib/dates";
 import { rollingAverage } from "@/lib/utils";
 import type { HealthLog } from "@/types/database";
@@ -57,7 +57,7 @@ export function BodyWeightChart({ logs }: { logs: HealthLog[] }) {
           )}
         </p>
       )}
-      <ResponsiveContainer width="100%" height={200}>
+      <ChartContainer height={200}>
         <LineChart data={chartData}>
           <CartesianGrid strokeDasharray="3 3" stroke={GRID} />
           <XAxis
@@ -106,7 +106,7 @@ export function BodyWeightChart({ logs }: { logs: HealthLog[] }) {
             name="weightAvg"
           />
         </LineChart>
-      </ResponsiveContainer>
+      </ChartContainer>
     </div>
   );
 }

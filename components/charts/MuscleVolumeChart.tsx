@@ -4,11 +4,11 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
+import { ChartContainer } from "@/components/charts/ChartContainer";
 import type { MuscleVolume } from "@/lib/queries";
 
 const GRID = "#3f3f46";
@@ -24,7 +24,7 @@ export function MuscleVolumeChart({ data }: { data: MuscleVolume[] }) {
   }
 
   return (
-    <ResponsiveContainer width="100%" height={220}>
+    <ChartContainer height={220}>
       <BarChart data={data} layout="vertical" margin={{ left: 10 }}>
         <CartesianGrid
           strokeDasharray="3 3"
@@ -50,6 +50,6 @@ export function MuscleVolumeChart({ data }: { data: MuscleVolume[] }) {
         />
         <Bar dataKey="sets" fill="#004cff" radius={[0, 4, 4, 0]} />
       </BarChart>
-    </ResponsiveContainer>
+    </ChartContainer>
   );
 }

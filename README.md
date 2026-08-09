@@ -55,7 +55,18 @@ npm run dev
 
 ### Existing database (no full reset)
 
-Run **`supabase/secure-rls.sql`** on an older DB to add `user_id` columns and lock down policies.
+Run **`supabase/migrate-v2.sql`**, then **`supabase/secure-rls.sql`**.
+
+### SQL files
+
+| File | Purpose |
+|------|---------|
+| `reset.sql` | Full schema reset + routines (start here) |
+| `secure-rls.sql` | Auth + `user_id` columns + RLS (included in reset.sql) |
+| `migrate-v2.sql` | Incremental updates for old DBs |
+| `seed-demo.sql` | Fake sample data (safe for git) |
+| `seed-history.example.sql` | Template for local personal import |
+| `seed-history.sql` | Your data — **local only, gitignored** |
 
 ## Data & privacy checklist
 

@@ -7,11 +7,11 @@ import {
   Legend,
   Line,
   LineChart,
-  ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
+import { ChartContainer } from "@/components/charts/ChartContainer";
 import { getMovementProgress, type MovementProgressPoint } from "@/lib/queries";
 import { formatSetLine } from "@/lib/utils";
 import type { Movement } from "@/types/database";
@@ -129,7 +129,7 @@ export function ProgressiveOverloadChart({
       )}
 
       {progress && progress.length > 0 && (
-        <ResponsiveContainer width="100%" height={220}>
+        <ChartContainer height={220}>
           <LineChart data={progress}>
             <CartesianGrid strokeDasharray="3 3" stroke={GRID} />
             <XAxis
@@ -161,7 +161,7 @@ export function ProgressiveOverloadChart({
               name="estimated1RM"
             />
           </LineChart>
-        </ResponsiveContainer>
+        </ChartContainer>
       )}
     </div>
   );

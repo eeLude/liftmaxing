@@ -7,11 +7,11 @@ import {
   ComposedChart,
   Legend,
   Line,
-  ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
+import { ChartContainer } from "@/components/charts/ChartContainer";
 import { formatFiDate } from "@/lib/dates";
 import { rollingAverage } from "@/lib/utils";
 import type { HealthLog } from "@/types/database";
@@ -43,7 +43,7 @@ export function HealthTrendChart({ logs }: { logs: HealthLog[] }) {
   }
 
   return (
-    <ResponsiveContainer width="100%" height={240}>
+    <ChartContainer height={240}>
       <ComposedChart data={chartData}>
         <CartesianGrid strokeDasharray="3 3" stroke={GRID} />
         <XAxis dataKey="dateLabel" tick={{ fontSize: 11, fill: TICK }} />
@@ -99,6 +99,6 @@ export function HealthTrendChart({ logs }: { logs: HealthLog[] }) {
           connectNulls
         />
       </ComposedChart>
-    </ResponsiveContainer>
+    </ChartContainer>
   );
 }

@@ -1,11 +1,12 @@
 -- FULL RESET — run in Supabase SQL Editor to wipe messy data and apply clean schema.
--- WARNING: deletes all workout data. Health logs are preserved.
+-- WARNING: deletes all workout and health data.
 
 -- Drop old objects
 drop view if exists exercise_last_performance;
 drop table if exists workout_logs cascade;
 drop table if exists session_exercises cascade;
 drop table if exists workout_sessions cascade;
+drop table if exists health_logs cascade;
 drop table if exists split_exercises cascade;
 drop table if exists exercises cascade;
 drop table if exists movements cascade;
@@ -76,7 +77,7 @@ create table workout_logs (
   unique (session_exercise_id, set_number)
 );
 
-create table if not exists health_logs (
+create table health_logs (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users (id) on delete cascade default auth.uid(),
   date date not null,

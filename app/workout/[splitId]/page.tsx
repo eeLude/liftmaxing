@@ -44,12 +44,13 @@ function ExerciseCard({
   allMovements: { id: string; name: string; target_muscle: string }[];
   onChange: (draft: ExerciseDraft) => void;
 }) {
-  const templateName = slot.movements.name;
+  const templateName = slot.movements?.name ?? "Template";
   const lookupId = draft.performedMovementId;
 
   const { data: previous, isLoading } = useQuery({
     queryKey: ["previous-performance", lookupId],
     queryFn: () => getPreviousMovementPerformance(lookupId),
+    enabled: !!lookupId,
   });
 
   const copyLastSession = () => {
@@ -83,7 +84,7 @@ function ExerciseCard({
       ...draft,
       performedMovementId: draft.templateMovementId,
       performedName: templateName,
-      targetMuscle: slot.movements.target_muscle,
+      targetMuscle: slot.movements?.target_muscle ?? draft.targetMuscle,
       isSubstituted: false,
       sets: makeEmptySets(draft.defaultSets),
       note: "",
@@ -264,8 +265,8 @@ export default function ActiveWorkoutPage({
         slotId: slot.id,
         templateMovementId: slot.movement_id,
         performedMovementId: slot.movement_id,
-        performedName: slot.movements.name,
-        targetMuscle: slot.movements.target_muscle,
+        performedName: slot.movements?.name ?? "Unknown movement",
+        targetMuscle: slot.movements?.target_muscle ?? "Unknown",
         defaultSets: slot.default_sets,
         sets: makeEmptySets(slot.default_sets),
         note: "",
@@ -337,12 +338,18 @@ export default function ActiveWorkoutPage({
         </div>
       </header>
 
+      {templateQuery.isError && (
+        <p className="text-sm text-red-400">
+          Could not load workout template. Check your connection and try again.
+        </p>
+      )}
+
       {isRunSplit ? (
         <RunWorkoutForm splitId={splitId} />
       ) : (
         <>
           <div className="space-y-4">
-            {templateQuery.data?.map((slot) => (
+            {templateQuery.data?.filter((slot) => slot.movements).map((slot) => (
               <ExerciseCard
                 key={slot.id}
                 slot={slot}

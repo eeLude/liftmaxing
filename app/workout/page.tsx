@@ -7,7 +7,7 @@ import { MobileLayout } from "@/components/MobileLayout";
 import { getSplits } from "@/lib/queries";
 
 export default function WorkoutSelectorPage() {
-  const { data: splits, isLoading } = useQuery({
+  const { data: splits, isLoading, isError } = useQuery({
     queryKey: ["splits"],
     queryFn: getSplits,
   });
@@ -21,6 +21,12 @@ export default function WorkoutSelectorPage() {
 
       {isLoading && (
         <p className="text-center text-zinc-500">Loading splits...</p>
+      )}
+
+      {isError && (
+        <p className="text-center text-sm text-red-400">
+          Could not load splits. Sign in and check your connection.
+        </p>
       )}
 
       <div className="space-y-3">

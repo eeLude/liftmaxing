@@ -1,5 +1,13 @@
--- Secure RLS for personal use (run AFTER reset.sql, AFTER creating your auth user)
--- Replaces open anon read/write with authenticated user-only access.
+-- Run this ONCE in Supabase SQL Editor BEFORE seed-history.sql
+-- Adds user_id columns + login-only RLS policies.
+--
+-- If you have existing workout/health rows, uncomment and set YOUR UUID below
+-- (Supabase → Authentication → Users → copy UUID), run this script, then seed-history.sql.
+
+-- alter table workout_sessions set ( ... )  -- see bottom for optional backfill
+
+alter table workout_sessions
+  add column if not exists is_seeded boolean not null default false;
 
 alter table workout_sessions
   add column if not exists user_id uuid references auth.users (id) on delete cascade;
@@ -7,12 +15,13 @@ alter table workout_sessions
 alter table health_logs
   add column if not exists user_id uuid references auth.users (id) on delete cascade;
 
+-- Old schema had unique(date); new schema uses unique(user_id, date)
 alter table health_logs drop constraint if exists health_logs_date_key;
 
-create unique index if not exists health_logs_user_date_idx
-  on health_logs (user_id, date);
+drop index if exists health_logs_user_date_idx;
+create unique index health_logs_user_date_idx on health_logs (user_id, date);
 
--- Drop open dev policies
+-- Drop open dev policies (old schema)
 drop policy if exists "anon_all" on workout_splits;
 drop policy if exists "anon_all" on movements;
 drop policy if exists "anon_all" on split_exercises;
@@ -20,8 +29,18 @@ drop policy if exists "anon_all" on workout_sessions;
 drop policy if exists "anon_all" on session_exercises;
 drop policy if exists "anon_all" on workout_logs;
 drop policy if exists "anon_all" on health_logs;
+drop policy if exists "Allow anon read/write (dev only)" on health_logs;
 
--- Catalog: authenticated read (no personal data)
+-- Drop auth policies if re-running
+drop policy if exists "auth_read_splits" on workout_splits;
+drop policy if exists "auth_read_movements" on movements;
+drop policy if exists "auth_insert_movements" on movements;
+drop policy if exists "auth_read_split_exercises" on split_exercises;
+drop policy if exists "users_own_sessions" on workout_sessions;
+drop policy if exists "users_own_session_exercises" on session_exercises;
+drop policy if exists "users_own_workout_logs" on workout_logs;
+drop policy if exists "users_own_health_logs" on health_logs;
+
 create policy "auth_read_splits" on workout_splits
   for select to authenticated using (true);
 
@@ -34,7 +53,6 @@ create policy "auth_insert_movements" on movements
 create policy "auth_read_split_exercises" on split_exercises
   for select to authenticated using (true);
 
--- User-owned workout data
 create policy "users_own_sessions" on workout_sessions
   for all to authenticated
   using (auth.uid() = user_id)
@@ -81,8 +99,8 @@ create policy "users_own_health_logs" on health_logs
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
--- Optional: assign existing rows to your account (replace YOUR_USER_UUID)
--- update workout_sessions set user_id = 'YOUR_USER_UUID' where user_id is null;
--- update health_logs set user_id = 'YOUR_USER_UUID' where user_id is null;
+-- Optional: attach old rows to your account, then enforce NOT NULL
+-- update workout_sessions set user_id = 'YOUR-USER-UUID'::uuid where user_id is null;
+-- update health_logs set user_id = 'YOUR-USER-UUID'::uuid where user_id is null;
 -- alter table workout_sessions alter column user_id set not null;
 -- alter table health_logs alter column user_id set not null;

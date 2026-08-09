@@ -4,11 +4,11 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
+import { ChartContainer } from "@/components/charts/ChartContainer";
 import type { WeeklyTrainingVolume } from "@/lib/queries";
 
 const GRID = "#3f3f46";
@@ -28,7 +28,7 @@ export function WeeklyTrainingVolumeChart({
   }
 
   return (
-    <ResponsiveContainer width="100%" height={200}>
+    <ChartContainer height={200}>
       <BarChart data={data}>
         <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
         <XAxis dataKey="weekLabel" tick={{ fontSize: 10, fill: TICK }} />
@@ -48,6 +48,6 @@ export function WeeklyTrainingVolumeChart({
         />
         <Bar dataKey="sets" fill="#004cff" radius={[4, 4, 0, 0]} name="sets" />
       </BarChart>
-    </ResponsiveContainer>
+    </ChartContainer>
   );
 }
