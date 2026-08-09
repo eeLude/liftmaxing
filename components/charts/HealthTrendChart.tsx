@@ -1,0 +1,104 @@
+"use client";
+
+import { useMemo } from "react";
+import {
+  Bar,
+  CartesianGrid,
+  ComposedChart,
+  Legend,
+  Line,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { formatFiDate } from "@/lib/dates";
+import { rollingAverage } from "@/lib/utils";
+import type { HealthLog } from "@/types/database";
+
+const GRID = "#3f3f46";
+const TICK = "#a1a1aa";
+
+export function HealthTrendChart({ logs }: { logs: HealthLog[] }) {
+  const chartData = useMemo(() => {
+    const weights = logs.map((l) =>
+      l.weight_kg != null ? Number(l.weight_kg) : null
+    );
+    const avgWeights = rollingAverage(weights, 7);
+
+    return logs.map((log, i) => ({
+      dateLabel: formatFiDate(log.date),
+      weight: log.weight_kg != null ? Number(log.weight_kg) : null,
+      weightAvg: avgWeights[i],
+      calories: log.calories,
+    }));
+  }, [logs]);
+
+  if (!logs.length) {
+    return (
+      <p className="text-sm text-zinc-500">
+        Log weight & calories to see trends.
+      </p>
+    );
+  }
+
+  return (
+    <ResponsiveContainer width="100%" height={240}>
+      <ComposedChart data={chartData}>
+        <CartesianGrid strokeDasharray="3 3" stroke={GRID} />
+        <XAxis dataKey="dateLabel" tick={{ fontSize: 11, fill: TICK }} />
+        <YAxis
+          yAxisId="weight"
+          orientation="left"
+          tick={{ fontSize: 11, fill: TICK }}
+          domain={["auto", "auto"]}
+          unit="kg"
+        />
+        <YAxis
+          yAxisId="calories"
+          orientation="right"
+          tick={{ fontSize: 11, fill: TICK }}
+          unit="kcal"
+        />
+        <Tooltip
+          contentStyle={{
+            borderRadius: 8,
+            fontSize: 13,
+            backgroundColor: "#27272a",
+            borderColor: "#3f3f46",
+            color: "#fafafa",
+          }}
+        />
+        <Legend />
+        <Bar
+          yAxisId="calories"
+          dataKey="calories"
+          fill="#52525b"
+          name="Calories"
+          radius={[3, 3, 0, 0]}
+        />
+        <Line
+          yAxisId="weight"
+          type="monotone"
+          dataKey="weight"
+          stroke="#004cff"
+          strokeWidth={2}
+          dot={{ r: 2 }}
+          name="Weight"
+          connectNulls
+        />
+        <Line
+          yAxisId="weight"
+          type="monotone"
+          dataKey="weightAvg"
+          stroke="#f59e0b"
+          strokeWidth={2}
+          strokeDasharray="5 5"
+          dot={false}
+          name="7-day avg"
+          connectNulls
+        />
+      </ComposedChart>
+    </ResponsiveContainer>
+  );
+}
