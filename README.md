@@ -1,12 +1,12 @@
-# Liftmaxxing
+# Liftmaxing
 
-Mobile-first workout tracking PWA — log gym sessions, body weight, and view strength progress on a dashboard.
+Mobile-first workout tracking: log gym sessions, body weight, and view strength progress on a dashboard.
 
 > Demo video: coming soon
 
 ## Why I built this
 
-I wanted a simple way to log gym stats (sets, weight, splits) without spreadsheets, and I used this project to **vibe-code with a coding agent** — iterating on a real app end-to-end rather than a tutorial clone.
+I wanted a simple way to log gym stats (sets, weight, splits) and track progress without getting bombed with ads or "buy pro" popups and keep my data private. Also wanted to try how powerful cursor coding agent(composer 2.5)  is with vibe coding.
 
 ## What it does
 
