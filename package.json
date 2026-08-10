@@ -1,6 +1,7 @@
 {
   "name": "liftmaxxing",
   "version": "0.1.0",
+  "description": "Mobile-first workout tracking PWA with Supabase, autosave logging, and progress dashboards",
   "private": true,
   "scripts": {
     "dev": "next dev",

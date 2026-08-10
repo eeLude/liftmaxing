@@ -1,116 +1,63 @@
 # Liftmaxxing
 
-Mobile-first workout tracking PWA built with Next.js, Supabase, and Recharts.
+Mobile-first workout tracking PWA — log gym sessions, body weight, and view strength progress on a dashboard.
 
-## Personal use (recommended setup)
+> Demo video: coming soon
 
-This app is designed for **one person**. Protect your data in two places:
+## Why I built this
 
-### 1. Git — code only, never personal rows
+I wanted a simple way to log gym stats (sets, weight, splits) without spreadsheets, and I used this project to **vibe-code with a coding agent** — iterating on a real app end-to-end rather than a tutorial clone.
 
-| File | Commit to git? |
-|------|----------------|
-| App source code | Yes |
-| `supabase/seed-demo.sql` | Yes (fake numbers) |
-| `supabase/seed-history.example.sql` | Yes (empty template) |
-| **`supabase/seed-history.sql`** | **Never** (gitignored) |
-| `.env.local` | **Never** (gitignored) |
+## What it does
 
-**If a file was committed before `.gitignore`**, Git still tracks it until you run:
+- Log workouts by split (Push / Pull / Legs / Upper / Run)
+- Autosave sets while typing; resume in-progress sessions
+- Track daily weight & calories
+- Dashboard: activity graph, calendar, progressive overload, weekly volume, muscle group progress
+- Auth + per-user data (Supabase RLS)
 
-```powershell
-git rm --cached supabase/seed-history.sql
-git commit -m "Stop tracking personal seed file"
+## Tech stack
+
+| | |
+|---|---|
+| Frontend | Next.js 15, React 19, TypeScript, Tailwind |
+| Backend | Supabase (Postgres, Auth, RLS) |
+| Data | TanStack Query |
+| Charts | Recharts |
+
+## Architecture
+
+```
+Next.js (client) → TanStack Query → Supabase JS → Postgres (RLS)
 ```
 
-Old commits may still contain the file. For a clean public history, use a **new private repo** or squash to a single fresh commit before pushing.
+- `workout_sessions` → `session_exercises` → `workout_logs`
+- Autosave: debounced writes + localStorage draft merge (`lib/useActiveWorkout.ts`)
 
-### 2. Live site — login required (Supabase RLS)
-
-Even with a private repo, anyone with your **Vercel URL** could read data if the database allowed anonymous access. This project uses:
-
-- **Supabase Auth** (email + password login)
-- **Row Level Security** — each user only sees their own workouts and health logs
-
-After deploy, in Supabase Dashboard → **Authentication → Providers**, consider **disabling public sign-ups** once your account exists (Settings → disable “Allow new users to sign up”), so only you can create an account.
-
-Use a **private GitHub repo** if you do not want others browsing your code.
-
-## Setup
-
-1. Create a Supabase project.
-2. Enable **Email** auth (Authentication → Providers).
-3. Run **`supabase/reset.sql`** in the SQL Editor.
-4. Copy `.env.local.example` → `.env.local` and add Supabase URL + anon key.
-5. Install and run locally:
+## Run locally
 
 ```bash
+git clone https://github.com/eeLude/liftmaxing.git
+cd liftmaxing
 npm install
+cp .env.local.example .env.local   # add Supabase URL + anon key
 npm run dev
 ```
 
-6. Open the app → **Sign up** with your email (creates your auth user).
-7. Optional demo data: replace the UUID in `supabase/seed-demo.sql`, then run it in SQL Editor.
-8. Personal history: copy `seed-history.example.sql` → **`seed-history.sql`** (local only), add your UUID + data, run in SQL Editor.
+1. Run `supabase/reset.sql` in Supabase SQL Editor
+2. Enable Email auth in Supabase
+3. Sign up at `localhost:3000` and log a workout
 
-### Existing database (no full reset)
-
-Run **`supabase/migrate-v2.sql`**, then **`supabase/secure-rls.sql`**, then **`supabase/migrate-workout-cards.sql`**, then **`supabase/migrate-autosave.sql`**.
-
-### SQL files
-
-| File | Purpose |
-|------|---------|
-| `reset.sql` | Full schema reset + routines (start here) |
-| `secure-rls.sql` | Auth + `user_id` columns + RLS (included in reset.sql) |
-| `migrate-v2.sql` | Incremental updates for old DBs |
-| `migrate-workout-cards.sql` | Nullable template slots + expanded movement catalog |
-| `migrate-autosave.sql` | `completed_at` on sessions for in-progress workout resume |
-| `seed-demo.sql` | Fake sample data (safe for git) |
-| `seed-history.example.sql` | Template for local personal import |
-| `seed-history.sql` | Your data — **local only, gitignored** |
-| `delete-before-date.sql` | Remove workouts/health before a cutoff date |
-
-## Data & privacy checklist
-
-- [ ] `git ls-files` does **not** list `seed-history.sql`
-- [ ] GitHub repo is **private** (optional but recommended)
-- [ ] Supabase sign-ups **disabled** after you create your account
-- [ ] Rotated Supabase anon key if `.env` was ever committed
-- [ ] Vercel env vars set (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`)
-
-## Routine structure
-
-| Split | Movements (default sets) |
-|-------|--------------------------|
-| **Push** | Cable Chest Fly (2), Incline DB Bench Press (2), Dumbbell Shoulder Press (3), Incline Chest Machine Press (2), Cable Tricep Extension (3) |
-| **Pull** | Face Pull (2), Wide Grip Lat Pulldown (2), Close Grip Seated Cable Row (2), T-Bar Row (2), EZ Bar Bicep Curl (3) |
-| **Legs** | Leg Press (3), RDL with Bar (3), Walking Lunges (2), Hamstring Curl (3), Machine Calf Raise (3), Cable Crunch (3) |
-| **Upper** | Chest Cable Machine (3), Bench Press (3), Close Grip Lat Pulldown (3), Incline DB Bench Press (3), Horizontal Lat Row Machine (3) |
-| **Run** | Treadmill Run (1) — log duration, distance, speed & elevation |
-
-## Features
-
-- Login-protected personal data
-- Finnish dates (`7.8.2026`)
-- Workout calendar with completed vs in-progress days
-- GitHub-style training activity graph
-- Volume charts, muscle group progress cards, progressive overload chart
-- Workout autosave with resume for in-progress sessions
-- Run logger (treadmill & outdoor) with duration, distance, speed & elevation
-- Add or remove exercises during a workout; create custom movements
-- Copy last session sets per exercise
-
-## Stack
-
-Next.js 15 · TypeScript · Tailwind · Supabase Auth + RLS · TanStack Query · Recharts
+Optional: `supabase/seed-demo.sql` for fake sample data.
 
 ## Routes
 
-| Route | Description |
-|-------|-------------|
-| `/login` | Sign in / sign up |
+| Route | Purpose |
+|-------|---------|
 | `/` | Dashboard |
-| `/workout` | Split selector |
-| `/workout/[splitId]` | Workout logger |
-| `/health` | Daily weight & calories |
+| `/workout` | Pick split |
+| `/workout/[splitId]` | Log workout |
+| `/health` | Weight & calories |
+| `/login` | Auth |
+
+MIT — see [LICENSE](LICENSE).
