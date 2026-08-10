@@ -6,6 +6,11 @@ import { MobileLayout } from "@/components/MobileLayout";
 import { MuscleGroupCards } from "@/components/MuscleGroupCards";
 import { WorkoutContributionGraph } from "@/components/WorkoutContributionGraph";
 import { WorkoutCalendar } from "@/components/WorkoutCalendar";
+import {
+  ChartSkeleton,
+  LoadingSpinner,
+  QueryErrorBanner,
+} from "@/components/LoadingStates";
 import { BodyWeightChart } from "@/components/charts/BodyWeightChart";
 import { ProgressiveOverloadChart } from "@/components/charts/ProgressiveOverloadChart";
 import { HealthTrendChart } from "@/components/charts/HealthTrendChart";
@@ -47,6 +52,23 @@ export default function DashboardPage() {
     queryFn: getMuscleGroupProgress,
   });
 
+  const dashboardQueries = [
+    movementsQuery,
+    healthQuery,
+    volumeQuery,
+    trainingVolumeQuery,
+    muscleGroupQuery,
+  ];
+
+  const isInitialLoading = dashboardQueries.some((q) => q.isLoading);
+  const failedQueries = dashboardQueries.filter((q) => q.isError);
+
+  const retryAll = () => {
+    for (const q of failedQueries) {
+      void q.refetch();
+    }
+  };
+
   const hasCalories = (healthQuery.data ?? []).some((l) => l.calories != null);
 
   const handleDayAction = (date: string, workout: WorkoutDay | null) => {
@@ -63,6 +85,20 @@ export default function DashboardPage() {
         <h1 className="text-2xl font-bold text-zinc-100">Liftmaxxing</h1>
         <p className="text-sm text-zinc-400">Track strength, volume & bodyweight</p>
       </header>
+
+      {failedQueries.length > 0 && (
+        <QueryErrorBanner
+          message={`Could not load ${failedQueries.length} dashboard section${failedQueries.length > 1 ? "s" : ""}.`}
+          onRetry={retryAll}
+        />
+      )}
+
+      {isInitialLoading && (
+        <div className="mb-4 flex items-center gap-2 text-sm text-zinc-500">
+          <LoadingSpinner className="h-4 w-4" />
+          Loading dashboard…
+        </div>
+      )}
 
       <section className="mb-6 rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-400">
@@ -85,14 +121,22 @@ export default function DashboardPage() {
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-400">
           Body Weight
         </h2>
-        <BodyWeightChart logs={healthQuery.data ?? []} />
+        {healthQuery.isLoading ? (
+          <ChartSkeleton />
+        ) : (
+          <BodyWeightChart logs={healthQuery.data ?? []} />
+        )}
       </section>
 
       <section className="mb-6 rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-400">
           Strength Progress
         </h2>
-        <ProgressiveOverloadChart movements={movementsQuery.data ?? []} />
+        {movementsQuery.isLoading ? (
+          <ChartSkeleton />
+        ) : (
+          <ProgressiveOverloadChart movements={movementsQuery.data ?? []} />
+        )}
       </section>
 
       <section className="mb-6 rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
@@ -109,14 +153,22 @@ export default function DashboardPage() {
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-400">
           Weekly Training Volume
         </h2>
-        <WeeklyTrainingVolumeChart data={trainingVolumeQuery.data ?? []} />
+        {trainingVolumeQuery.isLoading ? (
+          <ChartSkeleton />
+        ) : (
+          <WeeklyTrainingVolumeChart data={trainingVolumeQuery.data ?? []} />
+        )}
       </section>
 
       <section className="mb-6 rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-400">
           This Week by Muscle Group
         </h2>
-        <MuscleVolumeChart data={volumeQuery.data ?? []} />
+        {volumeQuery.isLoading ? (
+          <ChartSkeleton />
+        ) : (
+          <MuscleVolumeChart data={volumeQuery.data ?? []} />
+        )}
       </section>
 
       {hasCalories && (
@@ -124,7 +176,11 @@ export default function DashboardPage() {
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-400">
             Health & Calories
           </h2>
-          <HealthTrendChart logs={healthQuery.data ?? []} />
+          {healthQuery.isLoading ? (
+            <ChartSkeleton />
+          ) : (
+            <HealthTrendChart logs={healthQuery.data ?? []} />
+          )}
         </section>
       )}
     </MobileLayout>

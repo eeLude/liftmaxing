@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect } from "react";
 import { ChevronRight } from "lucide-react";
+import { LoadingSpinner } from "@/components/LoadingStates";
 import { MobileLayout } from "@/components/MobileLayout";
 import { formatFiDate, isFutureDate, toDateString } from "@/lib/dates";
 import { getSplits, getWorkoutSessionForDate } from "@/lib/queries";
@@ -32,17 +33,36 @@ function WorkoutPickerContent() {
   }, [sessionQuery.data, date, router]);
 
   if (sessionQuery.isLoading) {
-    return <p className="text-center text-zinc-500">Loading...</p>;
+    return (
+      <div className="flex justify-center py-8">
+        <LoadingSpinner className="h-6 w-6" />
+      </div>
+    );
+  }
+
+  if (sessionQuery.isError) {
+    return (
+      <p className="text-center text-sm text-red-400">
+        Could not load workout for this date. Check your connection and try again.
+      </p>
+    );
   }
 
   if (sessionQuery.data) {
-    return <p className="text-center text-zinc-500">Opening workout...</p>;
+    return (
+      <div className="flex items-center justify-center gap-2 py-8 text-zinc-500">
+        <LoadingSpinner className="h-5 w-5" />
+        Opening workout...
+      </div>
+    );
   }
 
   return (
     <>
       {splitsQuery.isLoading && (
-        <p className="text-center text-zinc-500">Loading splits...</p>
+        <div className="flex justify-center py-8">
+          <LoadingSpinner className="h-6 w-6" />
+        </div>
       )}
 
       {splitsQuery.isError && (
@@ -91,7 +111,15 @@ function WorkoutPickerPage() {
 
 export default function WorkoutSelectorPage() {
   return (
-    <Suspense fallback={<p className="text-center text-zinc-500">Loading...</p>}>
+    <Suspense
+      fallback={
+        <MobileLayout>
+          <div className="flex justify-center py-8">
+            <LoadingSpinner className="h-6 w-6" />
+          </div>
+        </MobileLayout>
+      }
+    >
       <WorkoutPickerPage />
     </Suspense>
   );

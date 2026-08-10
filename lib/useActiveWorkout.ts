@@ -104,11 +104,13 @@ export function useActiveWorkout({
   const sessionIdRef = useRef(sessionId);
   const debounceTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const pendingCards = useRef<Set<string>>(new Set());
+  const saveStatusRef = useRef(saveStatus);
   const initStarted = useRef(false);
   const initKey = useRef("");
 
   cardsRef.current = cards;
   sessionIdRef.current = sessionId;
+  saveStatusRef.current = saveStatus;
 
   const updatePendingState = useCallback(() => {
     setHasPendingSave(pendingCards.current.size > 0);
@@ -174,6 +176,16 @@ export function useActiveWorkout({
     },
     [saveCard, updatePendingState]
   );
+
+  const retryFailedSaves = useCallback(() => {
+    for (const card of cardsRef.current) {
+      if (cardHasValidSet(card)) {
+        pendingCards.current.add(card.cardId);
+        void saveCard(card.cardId);
+      }
+    }
+    updatePendingState();
+  }, [saveCard, updatePendingState]);
 
   const flushSaves = useCallback(async () => {
     for (const timer of debounceTimers.current.values()) {
@@ -262,6 +274,16 @@ export function useActiveWorkout({
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
   }, []);
+
+  useEffect(() => {
+    const handler = () => {
+      if (pendingCards.current.size > 0 || saveStatusRef.current === "error") {
+        retryFailedSaves();
+      }
+    };
+    window.addEventListener("online", handler);
+    return () => window.removeEventListener("online", handler);
+  }, [retryFailedSaves]);
 
   useEffect(() => {
     return () => {
@@ -406,11 +428,13 @@ export function useRunAutosave({
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sessionIdRef = useRef(sessionId);
   const sessionExerciseIdRef = useRef(sessionExerciseId);
+  const saveStatusRef = useRef(saveStatus);
   const initStarted = useRef(false);
   const initKey = useRef("");
 
   sessionIdRef.current = sessionId;
   sessionExerciseIdRef.current = sessionExerciseId;
+  saveStatusRef.current = saveStatus;
 
   const buildRunDraft = useCallback((): WorkoutCardDraft | null => {
     const durationMin = parseInt(duration, 10);
@@ -532,6 +556,20 @@ export function useRunAutosave({
     if (!ready || !sessionId) return;
     scheduleSave();
   }, [duration, distance, speed, elevation, note, movementId, ready, sessionId, scheduleSave]);
+
+  useEffect(() => {
+    const handler = () => {
+      if (
+        hasPendingSave ||
+        saveStatusRef.current === "error" ||
+        debounceRef.current
+      ) {
+        void saveRun();
+      }
+    };
+    window.addEventListener("online", handler);
+    return () => window.removeEventListener("online", handler);
+  }, [hasPendingSave, saveRun]);
 
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {

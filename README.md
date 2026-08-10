@@ -69,6 +69,7 @@ Run **`supabase/migrate-v2.sql`**, then **`supabase/secure-rls.sql`**, then **`s
 | `seed-demo.sql` | Fake sample data (safe for git) |
 | `seed-history.example.sql` | Template for local personal import |
 | `seed-history.sql` | Your data — **local only, gitignored** |
+| `delete-before-date.sql` | Remove workouts/health before a cutoff date |
 
 ## Data & privacy checklist
 
@@ -92,8 +93,13 @@ Run **`supabase/migrate-v2.sql`**, then **`supabase/secure-rls.sql`**, then **`s
 
 - Login-protected personal data
 - Finnish dates (`7.8.2026`)
-- Workout calendar, volume charts, run logger
-- Replace any template movement during a workout
+- Workout calendar with completed vs in-progress days
+- GitHub-style training activity graph
+- Volume charts, muscle group progress cards, progressive overload chart
+- Workout autosave with resume for in-progress sessions
+- Run logger (treadmill & outdoor) with duration, distance, speed & elevation
+- Add or remove exercises during a workout; create custom movements
+- Copy last session sets per exercise
 
 ## Stack
 

@@ -11,9 +11,7 @@ import type {
 } from "@/types/database";
 import {
   calculateOneRepMax,
-  formatCardioSetLine,
   formatProgressChange,
-  formatSetLine,
   getWeekStart,
   isCardioMuscle,
   pickBestSet,
@@ -293,28 +291,6 @@ export async function getWeeklyTrainingVolume(
     }));
 }
 
-export async function findOrCreateMovement(
-  name: string,
-  targetMuscle: string
-): Promise<Movement> {
-  const trimmed = name.trim();
-  const { data: existing } = await supabase
-    .from("movements")
-    .select("*")
-    .eq("name", trimmed)
-    .maybeSingle();
-
-  if (existing) return existing;
-
-  const { data, error } = await supabase
-    .from("movements")
-    .insert({ name: trimmed, target_muscle: targetMuscle })
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
-}
-
 export async function getPreviousMovementPerformance(
   movementId: string
 ): Promise<PreviousExerciseData | null> {
@@ -376,39 +352,6 @@ export async function createWorkoutSession(
     .single();
   if (error) throw error;
   return data;
-}
-
-export async function saveSessionExercise(
-  sessionId: string,
-  templateSlotId: string | null,
-  movementId: string,
-  sortOrder: number,
-  sets: { weight_kg: number; reps: number }[],
-  note: string | null
-) {
-  const { data: sessionExercise, error: seError } = await supabase
-    .from("session_exercises")
-    .insert({
-      session_id: sessionId,
-      template_slot_id: templateSlotId,
-      movement_id: movementId,
-      sort_order: sortOrder,
-      note,
-    })
-    .select()
-    .single();
-
-  if (seError) throw seError;
-
-  const rows = sets.map((set, index) => ({
-    session_exercise_id: sessionExercise.id,
-    set_number: index + 1,
-    weight_kg: set.weight_kg,
-    reps: set.reps,
-  }));
-
-  const { error } = await supabase.from("workout_logs").insert(rows);
-  if (error) throw error;
 }
 
 export async function getInProgressSession(
@@ -854,63 +797,6 @@ export async function getWorkoutDaysInMonth(
   const lastDay = new Date(year, month, 0).getDate();
   const end = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
   return getWorkoutDaysInRange(start, end);
-}
-
-export type SessionSummaryExercise = {
-  name: string;
-  setsSummary: string;
-  note: string | null;
-};
-
-export type WorkoutSessionSummary = {
-  date: string;
-  splitName: string;
-  exercises: SessionSummaryExercise[];
-};
-
-export async function getWorkoutSessionSummary(
-  sessionId: string
-): Promise<WorkoutSessionSummary | null> {
-  const { data: session, error: sessionError } = await supabase
-    .from("workout_sessions")
-    .select("date, workout_splits(name)")
-    .eq("id", sessionId)
-    .maybeSingle();
-
-  if (sessionError) throw sessionError;
-  if (!session) return null;
-
-  const { data: exercises, error: exError } = await supabase
-    .from("session_exercises")
-    .select(
-      "note, sort_order, movements(name, target_muscle), workout_logs(weight_kg, reps, set_number)"
-    )
-    .eq("session_id", sessionId)
-    .order("sort_order");
-
-  if (exError) throw exError;
-
-  return {
-    date: session.date,
-    splitName: (session.workout_splits as { name: string }).name,
-    exercises: (exercises ?? []).map((ex) => {
-      const movement = ex.movements as { name: string; target_muscle: string };
-      const logs = (ex.workout_logs as { weight_kg: number; reps: number; set_number: number }[])
-        .sort((a, b) => a.set_number - b.set_number);
-      const setsSummary = isCardioMuscle(movement.target_muscle)
-        ? logs
-            .map((l) => formatCardioSetLine(Number(l.weight_kg), l.reps))
-            .join(", ")
-        : logs
-            .map((l) => formatSetLine(Number(l.weight_kg), l.reps))
-            .join(", ");
-      return {
-        name: movement.name,
-        setsSummary,
-        note: ex.note,
-      };
-    }),
-  };
 }
 
 export async function getHealthLogs(days = 120): Promise<HealthLog[]> {

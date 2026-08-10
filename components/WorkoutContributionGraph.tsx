@@ -4,6 +4,12 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef } from "react";
 import { getWorkoutDaysInRange } from "@/lib/queries";
 import {
+  ChartSkeleton,
+  QueryErrorBanner,
+} from "@/components/LoadingStates";
+import {
+  CONTRIBUTION_DAY_LABEL_ROWS,
+  CONTRIBUTION_DAY_LABELS,
   formatFiDate,
   getContributionDateRange,
   getContributionMonthLabels,
@@ -19,15 +25,9 @@ const RADIUS = 2;
 const LABEL_W = 27;
 const MONTH_H = 17;
 
-/** Row indices for Mon / Wed / Fri when week starts on Sunday */
-const DAY_LABELS: { row: number; label: string }[] = [
-  { row: 1, label: "Ma" },
-  { row: 3, label: "Ke" },
-  { row: 5, label: "Pe" },
-];
-
 const EMPTY_FILL = "#27272a"; // zinc-800 — matches app surface
 const BRAND_FILL = "#004cff";
+const IN_PROGRESS_FILL = "#004cff80";
 
 export function WorkoutContributionGraph() {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -35,17 +35,17 @@ export function WorkoutContributionGraph() {
   const weeks = useMemo(() => getContributionWeeks(WEEK_COUNT), []);
   const monthLabels = useMemo(() => getContributionMonthLabels(weeks), [weeks]);
 
-  const { data: workoutDays } = useQuery({
+  const { data: workoutDays, isLoading, isError, refetch } = useQuery({
     queryKey: ["workout-days-range", start, end],
     queryFn: () => getWorkoutDaysInRange(start, end),
   });
 
-  const completedDates = useMemo(() => {
-    const set = new Set<string>();
+  const dayStatus = useMemo(() => {
+    const map = new Map<string, "complete" | "in-progress">();
     for (const day of workoutDays ?? []) {
-      if (day.isComplete) set.add(day.date);
+      map.set(day.date, day.isComplete ? "complete" : "in-progress");
     }
-    return set;
+    return map;
   }, [workoutDays]);
 
   const width = LABEL_W + weeks.length * BLOCK - GAP;
@@ -56,16 +56,28 @@ export function WorkoutContributionGraph() {
     if (el) el.scrollLeft = el.scrollWidth;
   }, [width]);
 
+  if (isLoading) {
+    return <ChartSkeleton />;
+  }
+
+  if (isError) {
+    return (
+      <QueryErrorBanner
+        message="Could not load training activity."
+        onRetry={() => void refetch()}
+      />
+    );
+  }
+
   return (
     <div ref={scrollRef} className="overflow-x-auto pb-1">
       <svg
         width={width}
         height={height}
         role="img"
-        aria-label="Viimeisen vuoden treenit"
+        aria-label="Last year of training activity"
         className="block"
       >
-        {/* Month labels — same x grid as week columns */}
         {monthLabels.map((label, weekIndex) =>
           label ? (
             <text
@@ -80,12 +92,11 @@ export function WorkoutContributionGraph() {
           ) : null
         )}
 
-        {/* Weekday labels — Mon, Wed, Fri only */}
-        {DAY_LABELS.map(({ row, label }) => (
+        {CONTRIBUTION_DAY_LABELS.map((label, index) => (
           <text
             key={label}
             x={0}
-            y={MONTH_H + row * BLOCK + CELL - 1}
+            y={MONTH_H + CONTRIBUTION_DAY_LABEL_ROWS[index] * BLOCK + CELL - 1}
             className="fill-zinc-500 text-[10px]"
             dominantBaseline="auto"
           >
@@ -93,12 +104,17 @@ export function WorkoutContributionGraph() {
           </text>
         ))}
 
-        {/* Day cells — one column per week, Sunday at top */}
         {weeks.map((week, weekIndex) =>
           week.map((iso, dayIndex) => {
             const x = LABEL_W + weekIndex * BLOCK;
             const y = MONTH_H + dayIndex * BLOCK;
-            const done = iso != null && completedDates.has(iso);
+            const status = iso != null ? dayStatus.get(iso) : undefined;
+            const fill =
+              status === "complete"
+                ? BRAND_FILL
+                : status === "in-progress"
+                  ? IN_PROGRESS_FILL
+                  : EMPTY_FILL;
 
             return (
               <rect
@@ -109,12 +125,16 @@ export function WorkoutContributionGraph() {
                 height={CELL}
                 rx={RADIUS}
                 ry={RADIUS}
-                fill={done ? BRAND_FILL : EMPTY_FILL}
+                fill={fill}
               >
                 {iso && (
                   <title>
                     {formatFiDate(iso)}
-                    {done ? " — treeni" : ""}
+                    {status === "complete"
+                      ? " — workout complete"
+                      : status === "in-progress"
+                        ? " — in progress"
+                        : ""}
                   </title>
                 )}
               </rect>

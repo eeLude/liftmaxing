@@ -173,13 +173,6 @@ export type WorkoutCardDraft = {
   note: string;
 };
 
-/** @deprecated Use WorkoutCardDraft */
-export type ExerciseDraft = WorkoutCardDraft & {
-  templateMovementId?: string;
-  defaultSets?: number;
-  isSubstituted?: boolean;
-};
-
 export type PreviousExerciseData = {
   sets: { weight_kg: number; reps: number; set_number: number }[];
   note: string | null;

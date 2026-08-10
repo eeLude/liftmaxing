@@ -6,8 +6,7 @@ import { Save } from "lucide-react";
 import { MobileLayout } from "@/components/MobileLayout";
 import { useAuth } from "@/components/AuthProvider";
 import { getTodayHealthLog, upsertHealthLog } from "@/lib/queries";
-import { formatFiDate } from "@/lib/dates";
-import { toDateString } from "@/lib/utils";
+import { formatFiDate, toDateString } from "@/lib/dates";
 
 export default function HealthPage() {
   const queryClient = useQueryClient();
@@ -103,6 +102,14 @@ export default function HealthPage() {
 
         {saveMutation.isSuccess && (
           <p className="text-center text-sm text-emerald-400">Saved!</p>
+        )}
+
+        {saveMutation.isError && (
+          <p className="text-center text-sm text-red-400">
+            {saveMutation.error instanceof Error
+              ? saveMutation.error.message
+              : "Failed to save. Check your connection and try again."}
+          </p>
         )}
       </div>
     </MobileLayout>

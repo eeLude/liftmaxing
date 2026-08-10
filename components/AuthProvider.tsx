@@ -9,6 +9,7 @@ import {
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import type { Session, User } from "@supabase/supabase-js";
+import { LoadingSpinner } from "@/components/LoadingStates";
 import { supabase } from "@/lib/supabase";
 
 type AuthContextValue = {
@@ -19,6 +20,15 @@ type AuthContextValue = {
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+
+function AuthLoadingScreen({ message }: { message: string }) {
+  return (
+    <div className="flex min-h-dvh flex-col items-center justify-center gap-3 bg-zinc-950 text-zinc-400">
+      <LoadingSpinner className="h-6 w-6" />
+      <p className="text-sm">{message}</p>
+    </div>
+  );
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -72,19 +82,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   if (loading) {
-    return (
-      <div className="flex min-h-dvh items-center justify-center bg-zinc-950 text-zinc-400">
-        Loading...
-      </div>
-    );
+    return <AuthLoadingScreen message="Loading..." />;
   }
 
   if (!session && pathname !== "/login") {
-    return (
-      <div className="flex min-h-dvh items-center justify-center bg-zinc-950 text-zinc-400">
-        Redirecting to login...
-      </div>
-    );
+    return <AuthLoadingScreen message="Redirecting to login..." />;
   }
 
   return (

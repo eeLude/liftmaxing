@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useMemo, useState } from "react";
+import { LoadingSpinner } from "@/components/LoadingStates";
 import { getWorkoutDaysInMonth, type WorkoutDay } from "@/lib/queries";
 import {
   FI_WEEKDAYS,
@@ -20,7 +21,7 @@ export function WorkoutCalendar({
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth() + 1);
 
-  const { data: workoutDays } = useQuery({
+  const { data: workoutDays, isLoading, isError, refetch } = useQuery({
     queryKey: ["workout-days", year, month],
     queryFn: () => getWorkoutDaysInMonth(year, month),
   });
@@ -57,6 +58,29 @@ export function WorkoutCalendar({
     } else setMonth((m) => m + 1);
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-8">
+        <LoadingSpinner className="h-6 w-6" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="rounded-xl border border-red-900/50 bg-red-950/30 px-3 py-4 text-center text-sm text-red-300">
+        <p>Could not load calendar.</p>
+        <button
+          type="button"
+          onClick={() => void refetch()}
+          className="mt-2 text-xs font-medium text-red-200 underline"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="mb-3 flex items-center justify-between">
@@ -79,6 +103,17 @@ export function WorkoutCalendar({
         >
           <ChevronRight className="h-5 w-5" />
         </button>
+      </div>
+
+      <div className="mb-2 flex flex-wrap gap-3 text-xs text-zinc-500">
+        <span className="flex items-center gap-1.5">
+          <span className="h-1.5 w-1.5 rounded-full bg-brand" />
+          Complete
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-1.5 w-1.5 rounded-full bg-brand/50 ring-1 ring-brand/40" />
+          In progress
+        </span>
       </div>
 
       <div className="grid grid-cols-7 gap-1 text-center text-xs text-zinc-500">
@@ -114,6 +149,9 @@ export function WorkoutCalendar({
               {day}
               {workout?.isComplete && (
                 <span className="absolute bottom-1 h-1.5 w-1.5 rounded-full bg-brand" />
+              )}
+              {workout && !workout.isComplete && (
+                <span className="absolute bottom-1 h-1.5 w-1.5 rounded-full bg-brand/50 ring-1 ring-brand/40" />
               )}
             </button>
           );

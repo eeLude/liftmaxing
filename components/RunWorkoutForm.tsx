@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Check, Copy, Trash2 } from "lucide-react";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { SaveStatusText } from "@/components/workout/SaveStatusText";
 import {
   getAllMovements,
   getPreviousMovementPerformance,
@@ -35,27 +37,6 @@ function buildRunNote(
   const trimmed = userNote.trim();
   if (trimmed && auto) return `${auto}. ${trimmed}`;
   return trimmed || auto || null;
-}
-
-function SaveStatusText({
-  status,
-  hasPendingSave,
-}: {
-  status: "idle" | "saving" | "saved" | "error";
-  hasPendingSave: boolean;
-}) {
-  if (status === "saving" || hasPendingSave) {
-    return <span className="text-xs text-zinc-500">Saving…</span>;
-  }
-  if (status === "error") {
-    return (
-      <span className="text-xs text-amber-500">Offline — will retry</span>
-    );
-  }
-  if (status === "saved") {
-    return <span className="text-xs text-zinc-500">Saved</span>;
-  }
-  return null;
 }
 
 export function RunWorkoutForm({
@@ -92,6 +73,7 @@ export function RunWorkoutForm({
   const [elevation, setElevation] = useState("");
   const [note, setNote] = useState("");
   const [resumeApplied, setResumeApplied] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const slot = templateQuery.data?.[0];
   const buildNote = useCallback(
@@ -161,14 +143,7 @@ export function RunWorkoutForm({
   });
 
   const handleDeleteRun = () => {
-    if (
-      !window.confirm(
-        `Delete this workout for ${formatFiDate(workoutDate)}? This cannot be undone.`
-      )
-    ) {
-      return;
-    }
-    deleteMutation.mutate();
+    setShowDeleteConfirm(true);
   };
 
   return (
@@ -346,6 +321,17 @@ export function RunWorkoutForm({
           Failed to delete. Check your connection.
         </p>
       )}
+
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        title="Delete workout?"
+        message={`Delete this workout for ${formatFiDate(workoutDate)}? This cannot be undone.`}
+        confirmLabel="Delete"
+        destructive
+        loading={deleteMutation.isPending}
+        onConfirm={() => deleteMutation.mutate()}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
     </div>
   );
 }
