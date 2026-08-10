@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { MobileLayout } from "@/components/MobileLayout";
+import { MuscleGroupCards } from "@/components/MuscleGroupCards";
 import { WorkoutContributionGraph } from "@/components/WorkoutContributionGraph";
 import { WorkoutCalendar } from "@/components/WorkoutCalendar";
 import { BodyWeightChart } from "@/components/charts/BodyWeightChart";
@@ -14,6 +15,7 @@ import type { WorkoutDay } from "@/lib/queries";
 import {
   getHealthLogs,
   getMovementsWithHistory,
+  getMuscleGroupProgress,
   getWeeklyMuscleVolume,
   getWeeklyTrainingVolume,
 } from "@/lib/queries";
@@ -38,6 +40,11 @@ export default function DashboardPage() {
   const trainingVolumeQuery = useQuery({
     queryKey: ["weekly-training-volume"],
     queryFn: () => getWeeklyTrainingVolume(12),
+  });
+
+  const muscleGroupQuery = useQuery({
+    queryKey: ["muscle-group-progress"],
+    queryFn: getMuscleGroupProgress,
   });
 
   const hasCalories = (healthQuery.data ?? []).some((l) => l.calories != null);
@@ -86,6 +93,16 @@ export default function DashboardPage() {
           Strength Progress
         </h2>
         <ProgressiveOverloadChart movements={movementsQuery.data ?? []} />
+      </section>
+
+      <section className="mb-6 rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-400">
+          Muscle Group Progress
+        </h2>
+        <MuscleGroupCards
+          data={muscleGroupQuery.data}
+          isLoading={muscleGroupQuery.isLoading}
+        />
       </section>
 
       <section className="mb-6 rounded-2xl border border-zinc-800 bg-zinc-900 p-4">

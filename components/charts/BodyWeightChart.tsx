@@ -11,7 +11,7 @@ import {
 } from "recharts";
 import { ChartContainer } from "@/components/charts/ChartContainer";
 import { formatFiDate } from "@/lib/dates";
-import { rollingAverage } from "@/lib/utils";
+import { getWeeklyWeightChange, rollingAverage } from "@/lib/utils";
 import type { HealthLog } from "@/types/database";
 
 const GRID = "#3f3f46";
@@ -32,11 +32,7 @@ export function BodyWeightChart({ logs }: { logs: HealthLog[] }) {
   }, [logs]);
 
   const latest = chartData.at(-1)?.weight;
-  const earliest = chartData[0]?.weight;
-  const delta =
-    latest != null && earliest != null
-      ? Math.round((latest - earliest) * 10) / 10
-      : null;
+  const weeklyChange = getWeeklyWeightChange(chartData);
 
   if (!chartData.length) {
     return (
@@ -48,12 +44,14 @@ export function BodyWeightChart({ logs }: { logs: HealthLog[] }) {
 
   return (
     <div>
-      {delta != null && (
+      {latest != null && (
         <p className="mb-3 text-sm text-zinc-400">
-          {delta > 0 ? "+" : ""}
-          {delta} kg over period
-          {latest != null && (
-            <span className="ml-2 text-zinc-300">· Latest {latest} kg</span>
+          <span className="text-zinc-300">Latest {latest} kg</span>
+          {weeklyChange != null && (
+            <span className="ml-2">
+              · Weekly {weeklyChange > 0 ? "+" : ""}
+              {weeklyChange} kg
+            </span>
           )}
         </p>
       )}

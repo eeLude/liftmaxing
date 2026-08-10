@@ -9,8 +9,23 @@ import type {
   WorkoutSession,
   WorkoutSplit,
 } from "@/types/database";
-import { calculateOneRepMax, formatSetLine, getWeekStart, toDateString, formatCardioSetLine, isCardioMuscle } from "@/lib/utils";
+import {
+  calculateOneRepMax,
+  formatCardioSetLine,
+  formatProgressChange,
+  formatSetLine,
+  getWeekStart,
+  isCardioMuscle,
+  pickBestSet,
+  toDateString,
+} from "@/lib/utils";
 import { formatFiDate } from "@/lib/dates";
+import {
+  DASHBOARD_MUSCLE_GROUPS,
+  emptyMuscleGroupProgress,
+  getDashboardMuscleGroup,
+  type DashboardMuscleGroup,
+} from "@/lib/muscleGroups";
 
 export async function getSplits(): Promise<WorkoutSplit[]> {
   const { data, error } = await supabase
@@ -104,10 +119,120 @@ export async function getMovementsWithHistory(): Promise<Movement[]> {
       movements: Movement;
     } | null;
     if (!se?.movements) continue;
+    if (isCardioMuscle(se.movements.target_muscle)) continue;
     seen.set(se.movements.id, se.movements);
   }
 
   return Array.from(seen.values()).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export type MovementProgressRow = {
+  movementId: string;
+  name: string;
+  group: DashboardMuscleGroup;
+  latestDate: string;
+  latestSet: { weight_kg: number; reps: number };
+  change: { label: string; direction: "up" | "down" | "neutral" } | null;
+};
+
+export type MuscleGroupProgress = Record<
+  DashboardMuscleGroup,
+  MovementProgressRow[]
+>;
+
+function isBetterSet(
+  a: { weight_kg: number; reps: number },
+  b: { weight_kg: number; reps: number }
+): boolean {
+  return a.weight_kg > b.weight_kg || (a.weight_kg === b.weight_kg && a.reps > b.reps);
+}
+
+export async function getMuscleGroupProgress(): Promise<MuscleGroupProgress> {
+  const { data, error } = await supabase
+    .from("session_exercises")
+    .select(
+      "movement_id, movements(id, name, target_muscle), workout_sessions!inner(date), workout_logs(weight_kg, reps)"
+    );
+
+  if (error) throw error;
+
+  type MovementAcc = {
+    movementId: string;
+    name: string;
+    targetMuscle: string;
+    sessionsByDate: Map<string, { weight_kg: number; reps: number }>;
+  };
+
+  const byMovement = new Map<string, MovementAcc>();
+
+  for (const row of data ?? []) {
+    const movement = row.movements as {
+      id: string;
+      name: string;
+      target_muscle: string;
+    } | null;
+    if (!movement || isCardioMuscle(movement.target_muscle)) continue;
+
+    const date = (row.workout_sessions as { date: string }).date;
+    const logs = (row.workout_logs as { weight_kg: number; reps: number }[]) ?? [];
+    const sets = logs.map((l) => ({
+      weight_kg: Number(l.weight_kg),
+      reps: l.reps,
+    }));
+    const bestSet = pickBestSet(sets);
+    if (!bestSet) continue;
+
+    let acc = byMovement.get(movement.id);
+    if (!acc) {
+      acc = {
+        movementId: movement.id,
+        name: movement.name,
+        targetMuscle: movement.target_muscle,
+        sessionsByDate: new Map(),
+      };
+      byMovement.set(movement.id, acc);
+    }
+
+    const existing = acc.sessionsByDate.get(date);
+    if (!existing || isBetterSet(bestSet, existing)) {
+      acc.sessionsByDate.set(date, bestSet);
+    }
+  }
+
+  const result = emptyMuscleGroupProgress() as MuscleGroupProgress;
+
+  for (const acc of byMovement.values()) {
+    const group = getDashboardMuscleGroup(acc.targetMuscle);
+    if (!group) continue;
+
+    const sessions = [...acc.sessionsByDate.entries()].sort(([a], [b]) =>
+      b.localeCompare(a)
+    );
+    if (sessions.length === 0) continue;
+
+    const [latestDate, latestSet] = sessions[0];
+    const previous = sessions[1]?.[1] ?? null;
+    const change = previous ? formatProgressChange(latestSet, previous) : null;
+
+    result[group].push({
+      movementId: acc.movementId,
+      name: acc.name,
+      group,
+      latestDate,
+      latestSet,
+      change,
+    });
+  }
+
+  for (const group of DASHBOARD_MUSCLE_GROUPS) {
+    result[group].sort((a, b) => {
+      const dateCmp = b.latestDate.localeCompare(a.latestDate);
+      if (dateCmp !== 0) return dateCmp;
+      return a.name.localeCompare(b.name);
+    });
+  }
+
+  return result;
 }
 
 export type WeeklyTrainingVolume = {
@@ -541,6 +666,7 @@ export async function invalidateWorkoutDashboardQueries(
     queryClient.invalidateQueries({ queryKey: ["workout-session-for-date"] }),
     queryClient.invalidateQueries({ queryKey: ["weekly-volume"] }),
     queryClient.invalidateQueries({ queryKey: ["weekly-training-volume"] }),
+    queryClient.invalidateQueries({ queryKey: ["muscle-group-progress"] }),
   ]);
 }
 
@@ -605,15 +731,15 @@ export async function getMovementProgress(
       topSet: { weight_kg: 0, reps: 0 },
     };
 
-    const isBetter =
-      weight > existing.topWeight ||
-      (weight === existing.topWeight && reps > existing.topSet.reps);
-
-    byDate.set(date, {
-      topWeight: Math.max(existing.topWeight, weight),
-      best1RM: Math.max(existing.best1RM, oneRM),
-      topSet: isBetter ? { weight_kg: weight, reps } : existing.topSet,
-    });
+    if (oneRM > existing.best1RM) {
+      byDate.set(date, {
+        topWeight: weight,
+        best1RM: oneRM,
+        topSet: { weight_kg: weight, reps },
+      });
+    } else {
+      byDate.set(date, existing);
+    }
   }
 
   return Array.from(byDate.entries())
