@@ -3,11 +3,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { Check, Copy } from "lucide-react";
+import { Check, Copy, Trash2 } from "lucide-react";
 import {
   getAllMovements,
   getPreviousMovementPerformance,
   getSplitTemplate,
+  invalidateWorkoutDashboardQueries,
 } from "@/lib/queries";
 import { useRunAutosave } from "@/lib/useActiveWorkout";
 import { formatFiDate } from "@/lib/dates";
@@ -146,14 +147,29 @@ export function RunWorkoutForm({
   const finishMutation = useMutation({
     mutationFn: () => autosave.finishRun(),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["workout-days"] });
-      await queryClient.invalidateQueries({ queryKey: ["workout-days-range"] });
-      await queryClient.invalidateQueries({
-        queryKey: ["workout-session-for-date"],
-      });
+      await invalidateWorkoutDashboardQueries(queryClient);
       router.push("/");
     },
   });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => autosave.deleteRun(),
+    onSuccess: async () => {
+      await invalidateWorkoutDashboardQueries(queryClient);
+      router.push("/");
+    },
+  });
+
+  const handleDeleteRun = () => {
+    if (
+      !window.confirm(
+        `Delete this workout for ${formatFiDate(workoutDate)}? This cannot be undone.`
+      )
+    ) {
+      return;
+    }
+    deleteMutation.mutate();
+  };
 
   return (
     <div className="space-y-4">
@@ -310,6 +326,24 @@ export function RunWorkoutForm({
       {finishMutation.isError && (
         <p className="text-center text-sm text-red-500">
           Failed to finish. Check your connection.
+        </p>
+      )}
+
+      {autosave.sessionId && (
+        <button
+          type="button"
+          onClick={handleDeleteRun}
+          disabled={deleteMutation.isPending || !autosave.ready}
+          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-red-900/50 py-3 text-sm font-medium text-red-400 hover:bg-red-950/30 disabled:opacity-60"
+        >
+          <Trash2 className="h-4 w-4" />
+          {deleteMutation.isPending ? "Deleting..." : "Delete workout"}
+        </button>
+      )}
+
+      {deleteMutation.isError && (
+        <p className="text-center text-sm text-red-500">
+          Failed to delete. Check your connection.
         </p>
       )}
     </div>

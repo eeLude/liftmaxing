@@ -112,7 +112,7 @@ export function WorkoutCalendar({
               } ${isToday ? "font-bold text-brand" : "text-zinc-300"}`}
             >
               {day}
-              {workout && (
+              {workout?.isComplete && (
                 <span className="absolute bottom-1 h-1.5 w-1.5 rounded-full bg-brand" />
               )}
             </button>

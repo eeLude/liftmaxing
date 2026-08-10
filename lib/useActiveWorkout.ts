@@ -6,6 +6,7 @@ import {
   completeWorkoutSession,
   createWorkoutSession,
   deleteSessionExercise,
+  deleteWorkoutSession,
   getWorkoutSessionForDate,
   loadSessionCards,
   upsertSessionExercise,
@@ -339,6 +340,14 @@ export function useActiveWorkout({
     clearDraft(sid);
   }, [flushSaves]);
 
+  const deleteWorkout = useCallback(async () => {
+    const sid = sessionIdRef.current;
+    if (!sid) return;
+    await flushSaves();
+    await deleteWorkoutSession(sid);
+    clearDraft(sid);
+  }, [flushSaves]);
+
   const hasSavedSets = cards.some(cardHasValidSet);
 
   return {
@@ -354,6 +363,7 @@ export function useActiveWorkout({
     addCard,
     startFresh,
     finishWorkout,
+    deleteWorkout,
   };
 }
 
@@ -547,6 +557,13 @@ export function useRunAutosave({
     await completeWorkoutSession(sid);
   }, [flushSave]);
 
+  const deleteRun = useCallback(async () => {
+    const sid = sessionIdRef.current;
+    if (!sid) return;
+    await flushSave();
+    await deleteWorkoutSession(sid);
+  }, [flushSave]);
+
   const canFinish =
     duration.trim() !== "" && parseInt(duration, 10) > 0;
 
@@ -558,6 +575,7 @@ export function useRunAutosave({
     hasPendingSave,
     canFinish,
     finishRun,
+    deleteRun,
     resumeData,
   };
 }

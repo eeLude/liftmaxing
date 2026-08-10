@@ -15,6 +15,7 @@ import {
   getSplitById,
   getSplitTemplate,
   getWorkoutSessionForDate,
+  invalidateWorkoutDashboardQueries,
 } from "@/lib/queries";
 import { formatPreviousSets } from "@/lib/utils";
 import { formatFiDate, isFutureDate, toDateString } from "@/lib/dates";
@@ -455,14 +456,29 @@ function ActiveWorkoutContent({
   const finishMutation = useMutation({
     mutationFn: () => workout.finishWorkout(),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["workout-days"] });
-      await queryClient.invalidateQueries({ queryKey: ["workout-days-range"] });
-      await queryClient.invalidateQueries({
-        queryKey: ["workout-session-for-date"],
-      });
+      await invalidateWorkoutDashboardQueries(queryClient);
       router.push("/");
     },
   });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => workout.deleteWorkout(),
+    onSuccess: async () => {
+      await invalidateWorkoutDashboardQueries(queryClient);
+      router.push("/");
+    },
+  });
+
+  const handleDeleteWorkout = () => {
+    if (
+      !window.confirm(
+        `Delete this workout for ${formatFiDate(workoutDate)}? This cannot be undone.`
+      )
+    ) {
+      return;
+    }
+    deleteMutation.mutate();
+  };
 
   const handleStartFresh = async () => {
     setStartingFresh(true);
@@ -607,6 +623,26 @@ function ActiveWorkoutContent({
               {finishMutation.error instanceof Error
                 ? finishMutation.error.message
                 : "Failed to finish. Check your connection."}
+            </p>
+          )}
+
+          {workout.sessionId && (
+            <button
+              type="button"
+              onClick={handleDeleteWorkout}
+              disabled={deleteMutation.isPending || !workout.cardsReady}
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-red-900/50 py-3 text-sm font-medium text-red-400 hover:bg-red-950/30 disabled:opacity-60"
+            >
+              <Trash2 className="h-4 w-4" />
+              {deleteMutation.isPending ? "Deleting..." : "Delete workout"}
+            </button>
+          )}
+
+          {deleteMutation.isError && (
+            <p className="mt-2 text-center text-sm text-red-500">
+              {deleteMutation.error instanceof Error
+                ? deleteMutation.error.message
+                : "Failed to delete. Check your connection."}
             </p>
           )}
         </>

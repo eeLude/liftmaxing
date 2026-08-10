@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import type { QueryClient } from "@tanstack/react-query";
 import type {
   HealthLog,
   Movement,
@@ -521,6 +522,26 @@ export async function completeWorkoutSession(sessionId: string) {
     }
     throw error;
   }
+}
+
+export async function deleteWorkoutSession(sessionId: string) {
+  const { error } = await supabase
+    .from("workout_sessions")
+    .delete()
+    .eq("id", sessionId);
+  if (error) throw error;
+}
+
+export async function invalidateWorkoutDashboardQueries(
+  queryClient: QueryClient
+) {
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: ["workout-days"] }),
+    queryClient.invalidateQueries({ queryKey: ["workout-days-range"] }),
+    queryClient.invalidateQueries({ queryKey: ["workout-session-for-date"] }),
+    queryClient.invalidateQueries({ queryKey: ["weekly-volume"] }),
+    queryClient.invalidateQueries({ queryKey: ["weekly-training-volume"] }),
+  ]);
 }
 
 export async function abandonInProgressSession(
