@@ -105,17 +105,6 @@ export function WorkoutCalendar({
         </button>
       </div>
 
-      <div className="mb-2 flex flex-wrap gap-3 text-xs text-zinc-500">
-        <span className="flex items-center gap-1.5">
-          <span className="h-1.5 w-1.5 rounded-full bg-brand" />
-          Complete
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-1.5 w-1.5 rounded-full bg-brand/50 ring-1 ring-brand/40" />
-          In progress
-        </span>
-      </div>
-
       <div className="grid grid-cols-7 gap-1 text-center text-xs text-zinc-500">
         {FI_WEEKDAYS.map((d) => (
           <div key={d} className="py-1 font-medium uppercase">

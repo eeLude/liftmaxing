@@ -145,7 +145,48 @@ function isBetterSet(
   return a.weight_kg > b.weight_kg || (a.weight_kg === b.weight_kg && a.reps > b.reps);
 }
 
+async function getActiveLoggedMovementIds(): Promise<Set<string>> {
+  const { data: sessions, error } = await supabase
+    .from("workout_sessions")
+    .select("id, split_id, date, created_at")
+    .not("completed_at", "is", null)
+    .order("date", { ascending: false })
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  if (!sessions?.length) return new Set();
+
+  const latestSessionBySplit = new Map<string, string>();
+  for (const session of sessions) {
+    if (!latestSessionBySplit.has(session.split_id)) {
+      latestSessionBySplit.set(session.split_id, session.id);
+    }
+  }
+
+  const sessionIds = [...latestSessionBySplit.values()];
+  if (sessionIds.length === 0) return new Set();
+
+  const { data: exercises, error: exError } = await supabase
+    .from("session_exercises")
+    .select("movement_id, workout_logs(id)")
+    .in("session_id", sessionIds);
+
+  if (exError) throw exError;
+
+  const ids = new Set<string>();
+  for (const row of exercises ?? []) {
+    const logs = row.workout_logs as { id: string }[] | null;
+    if (logs && logs.length > 0) {
+      ids.add(row.movement_id);
+    }
+  }
+
+  return ids;
+}
+
 export async function getMuscleGroupProgress(): Promise<MuscleGroupProgress> {
+  const activeIds = await getActiveLoggedMovementIds();
+
   const { data, error } = await supabase
     .from("session_exercises")
     .select(
@@ -200,6 +241,8 @@ export async function getMuscleGroupProgress(): Promise<MuscleGroupProgress> {
   const result = emptyMuscleGroupProgress() as MuscleGroupProgress;
 
   for (const acc of byMovement.values()) {
+    if (activeIds.size > 0 && !activeIds.has(acc.movementId)) continue;
+
     const group = getDashboardMuscleGroup(acc.targetMuscle);
     if (!group) continue;
 
