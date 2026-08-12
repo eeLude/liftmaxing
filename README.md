@@ -12,6 +12,7 @@ I wanted a simple way to log gym stats (sets, weight, splits) and track progress
 
 - Log workouts by split (Push / Pull / Legs / Upper / Run)
 - Autosave sets while typing; resume in-progress sessions
+- Reorder exercises (saved for your next session of that split)
 - Track daily weight & calories
 - Dashboard: activity graph, calendar, progressive overload, weekly volume, muscle group progress
 - Auth + per-user data (Supabase RLS)

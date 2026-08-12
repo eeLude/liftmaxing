@@ -7,8 +7,10 @@ import {
   createWorkoutSession,
   deleteSessionExercise,
   deleteWorkoutSession,
+  getLastCompletedSessionCards,
   getWorkoutSessionForDate,
   loadSessionCards,
+  persistCardOrder,
   upsertSessionExercise,
 } from "@/lib/queries";
 import type { WorkoutCardDraft } from "@/types/database";
@@ -242,6 +244,10 @@ export function useActiveWorkout({
         } else {
           const session = await createWorkoutSession(splitId, workoutDate);
           sid = session.id;
+          const lastLayout = await getLastCompletedSessionCards(splitId);
+          if (lastLayout.length > 0) {
+            loaded = lastLayout;
+          }
         }
 
         setSessionId(sid);
@@ -324,11 +330,22 @@ export function useActiveWorkout({
         }
       }
 
-      setCards((prev) => {
-        const next = prev.filter((c) => c.cardId !== cardId);
-        if (sessionIdRef.current) writeDraft(sessionIdRef.current, next);
-        return next;
-      });
+      const next = cardsRef.current.filter((c) => c.cardId !== cardId);
+      cardsRef.current = next;
+      setCards(next);
+
+      const sid = sessionIdRef.current;
+      if (!sid) return;
+
+      writeDraft(sid, next);
+      try {
+        const ordered = await persistCardOrder(sid, next);
+        cardsRef.current = ordered;
+        setCards(ordered);
+        writeDraft(sid, ordered);
+      } catch {
+        setSaveStatus("error");
+      }
     },
     [updatePendingState]
   );
@@ -341,12 +358,56 @@ export function useActiveWorkout({
     });
   }, []);
 
+  const moveCard = useCallback(async (cardId: string, direction: "up" | "down") => {
+    const sid = sessionIdRef.current;
+    if (!sid) return;
+
+    const prev = cardsRef.current;
+    const index = prev.findIndex((c) => c.cardId === cardId);
+    if (index < 0) return;
+
+    const target = direction === "up" ? index - 1 : index + 1;
+    if (target < 0 || target >= prev.length) return;
+
+    const next = [...prev];
+    [next[index], next[target]] = [next[target], next[index]];
+    cardsRef.current = next;
+    setCards(next);
+    writeDraft(sid, next);
+
+    try {
+      const ordered = await persistCardOrder(sid, next);
+      cardsRef.current = ordered;
+      setCards(ordered);
+      writeDraft(sid, ordered);
+    } catch {
+      setSaveStatus("error");
+    }
+  }, []);
+
+  const canMoveUp = useCallback(
+    (cardId: string) => {
+      const index = cards.findIndex((c) => c.cardId === cardId);
+      return index > 0;
+    },
+    [cards]
+  );
+
+  const canMoveDown = useCallback(
+    (cardId: string) => {
+      const index = cards.findIndex((c) => c.cardId === cardId);
+      return index >= 0 && index < cards.length - 1;
+    },
+    [cards]
+  );
+
   const startFresh = useCallback(async () => {
     await flushSaves();
     if (sessionIdRef.current) clearDraft(sessionIdRef.current);
     await abandonInProgressSession(splitId, workoutDate);
     const session = await createWorkoutSession(splitId, workoutDate);
-    const initial = buildInitialCards();
+    const lastLayout = await getLastCompletedSessionCards(splitId);
+    const initial = lastLayout.length > 0 ? lastLayout : buildInitialCards();
     setSessionId(session.id);
     setIsResuming(false);
     setCards(initial);
@@ -358,6 +419,9 @@ export function useActiveWorkout({
     const sid = sessionIdRef.current;
     if (!sid) return;
     await flushSaves();
+    const ordered = await persistCardOrder(sid, cardsRef.current);
+    cardsRef.current = ordered;
+    setCards(ordered);
     await completeWorkoutSession(sid);
     clearDraft(sid);
   }, [flushSaves]);
@@ -383,6 +447,9 @@ export function useActiveWorkout({
     updateCard,
     removeCard,
     addCard,
+    moveCard,
+    canMoveUp,
+    canMoveDown,
     startFresh,
     finishWorkout,
     deleteWorkout,

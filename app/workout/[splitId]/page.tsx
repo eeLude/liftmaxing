@@ -225,6 +225,10 @@ function ActiveWorkoutContent({
                 draft={draft}
                 onChange={(updated) => workout.updateCard(draft.cardId, updated)}
                 onRemove={() => void workout.removeCard(draft.cardId)}
+                canMoveUp={workout.canMoveUp(draft.cardId)}
+                canMoveDown={workout.canMoveDown(draft.cardId)}
+                onMoveUp={() => void workout.moveCard(draft.cardId, "up")}
+                onMoveDown={() => void workout.moveCard(draft.cardId, "down")}
               />
             ))}
 

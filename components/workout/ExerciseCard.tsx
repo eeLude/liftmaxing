@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Copy, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Copy, Plus, Trash2 } from "lucide-react";
 import { getPreviousMovementPerformance } from "@/lib/queries";
 import { formatPreviousSets } from "@/lib/utils";
 import { formatFiDate } from "@/lib/dates";
@@ -47,10 +47,18 @@ export function ExerciseCard({
   draft,
   onChange,
   onRemove,
+  canMoveUp = false,
+  canMoveDown = false,
+  onMoveUp,
+  onMoveDown,
 }: {
   draft: WorkoutCardDraft;
   onChange: (draft: WorkoutCardDraft) => void;
   onRemove: () => void;
+  canMoveUp?: boolean;
+  canMoveDown?: boolean;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
 }) {
   const lookupId = draft.performedMovementId;
 
@@ -96,7 +104,27 @@ export function ExerciseCard({
           </h3>
           <p className="mt-0.5 text-xs text-zinc-600">{draft.targetMuscle}</p>
         </div>
-        <div className="flex shrink-0 gap-1">
+        <div className="flex shrink-0 items-start gap-1">
+          <div className="flex flex-col">
+            <button
+              type="button"
+              onClick={onMoveUp}
+              disabled={!canMoveUp}
+              className="rounded-lg border border-zinc-700 p-1 text-zinc-400 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-30"
+              aria-label="Move exercise up"
+            >
+              <ChevronUp className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={onMoveDown}
+              disabled={!canMoveDown}
+              className="rounded-lg border border-zinc-700 p-1 text-zinc-400 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-30"
+              aria-label="Move exercise down"
+            >
+              <ChevronDown className="h-3.5 w-3.5" />
+            </button>
+          </div>
           <button
             type="button"
             onClick={copyLastSession}

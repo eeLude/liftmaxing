@@ -434,6 +434,112 @@ export async function loadSessionCards(
   });
 }
 
+export async function getLastCompletedSessionCards(
+  splitId: string
+): Promise<WorkoutCardDraft[]> {
+  const { data: session, error: sessionError } = await supabase
+    .from("workout_sessions")
+    .select("id")
+    .eq("split_id", splitId)
+    .not("completed_at", "is", null)
+    .order("date", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (sessionError) throw sessionError;
+  if (!session) return [];
+
+  const saved = await loadSessionCards(session.id);
+  if (saved.length === 0) return [];
+
+  const template = await getSplitTemplate(splitId);
+  const defaultSetsBySlot = new Map(
+    template.map((slot) => [slot.id, slot.default_sets])
+  );
+
+  return saved.map((card) => {
+    const setCount = card.slotId ? defaultSetsBySlot.get(card.slotId) ?? 3 : 3;
+    const sets = Array.from({ length: Math.max(setCount, 1) }, () => ({
+      weight_kg: "",
+      reps: "",
+    }));
+
+    return {
+      cardId: card.slotId ?? crypto.randomUUID(),
+      slotId: card.slotId,
+      sessionExerciseId: undefined,
+      performedMovementId: card.performedMovementId,
+      performedName: card.performedName,
+      targetMuscle: card.targetMuscle,
+      sets,
+      note: "",
+    };
+  });
+}
+
+export async function persistCardOrder(
+  sessionId: string,
+  cards: WorkoutCardDraft[]
+): Promise<WorkoutCardDraft[]> {
+  const updated: WorkoutCardDraft[] = [];
+
+  for (let i = 0; i < cards.length; i++) {
+    const card = cards[i];
+    const sortOrder = i + 1;
+    let sessionExerciseId = card.sessionExerciseId ?? null;
+
+    if (sessionExerciseId) {
+      const { error } = await supabase
+        .from("session_exercises")
+        .update({ sort_order: sortOrder })
+        .eq("id", sessionExerciseId);
+      if (error) throw error;
+      updated.push(card);
+      continue;
+    }
+
+    if (card.slotId) {
+      const { data: existing, error: lookupError } = await supabase
+        .from("session_exercises")
+        .select("id")
+        .eq("session_id", sessionId)
+        .eq("template_slot_id", card.slotId)
+        .maybeSingle();
+      if (lookupError) throw lookupError;
+
+      if (existing) {
+        const { error: updateError } = await supabase
+          .from("session_exercises")
+          .update({ sort_order: sortOrder, movement_id: card.performedMovementId })
+          .eq("id", existing.id);
+        if (updateError) throw updateError;
+        updated.push({ ...card, sessionExerciseId: existing.id });
+        continue;
+      }
+
+      const { data: inserted, error: insertError } = await supabase
+        .from("session_exercises")
+        .insert({
+          session_id: sessionId,
+          template_slot_id: card.slotId,
+          movement_id: card.performedMovementId,
+          sort_order: sortOrder,
+          note: card.note.trim() || null,
+        })
+        .select("id")
+        .single();
+      if (insertError) throw insertError;
+      updated.push({ ...card, sessionExerciseId: inserted.id });
+      continue;
+    }
+
+    updated.push(card);
+  }
+
+  return updated;
+}
+
 function parseValidSets(draft: WorkoutCardDraft) {
   return draft.sets
     .filter((s) => s.weight_kg !== "" && s.reps !== "")
