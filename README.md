@@ -2,7 +2,9 @@
 
 Mobile-first workout tracking: log gym sessions, body weight, and view strength progress on a dashboard.
 
-> Demo video: (https://www.youtube.com/shorts/UbDtB0gqzLw)
+## Demo
+
+[![Katso demo YouTubessa](https://img.youtube.com/vi/UbDtB0gqzLw/hqdefault.jpg)](https://youtube.com/shorts/UbDtB0gqzLw)
 
 ## Why I built this
 
