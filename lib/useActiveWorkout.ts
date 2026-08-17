@@ -19,44 +19,6 @@ import type { WorkoutCardDraft } from "@/types/database";
 const DEBOUNCE_MS = 1500;
 const DRAFT_PREFIX = "liftmaxxing:draft:";
 
-function agentLog(
-  location: string,
-  message: string,
-  data: Record<string, unknown>,
-  hypothesisId: string
-) {
-  const entry = {
-    sessionId: "8fe51b",
-    location,
-    message,
-    data,
-    timestamp: Date.now(),
-    hypothesisId,
-  };
-  // #region agent log
-  fetch("http://127.0.0.1:7340/ingest/9f294f2e-eeab-4153-a19e-324f3f26234a", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Debug-Session-Id": "8fe51b",
-    },
-    body: JSON.stringify(entry),
-  }).catch(() => {});
-  try {
-    const prev = JSON.parse(
-      localStorage.getItem("liftmaxxing:debug-8fe51b") ?? "[]"
-    ) as unknown[];
-    prev.push(entry);
-    localStorage.setItem(
-      "liftmaxxing:debug-8fe51b",
-      JSON.stringify(prev.slice(-20))
-    );
-  } catch {
-    /* ignore quota errors */
-  }
-  // #endregion
-}
-
 function formatUnknownError(err: unknown): string {
   if (err && typeof err === "object") {
     const o = err as {
@@ -282,19 +244,6 @@ export function useActiveWorkout({
           );
         }
       } catch (err) {
-        agentLog(
-          "useActiveWorkout.ts:flushSaves",
-          "upsertSessionExercise failed",
-          {
-            sessionId: sid,
-            cardId: card.cardId,
-            movementId: current.performedMovementId,
-            movementName: current.performedName,
-            sessionExerciseId: current.sessionExerciseId ?? null,
-            error: formatUnknownError(err),
-          },
-          "A,G"
-        );
         throw new Error(
           `${formatUnknownError(err)} (${current.performedName})`
         );
@@ -342,44 +291,14 @@ export function useActiveWorkout({
 
         const draft = isCompleted ? null : readDraft(sid);
         let initial = loaded.length > 0 ? loaded : buildInitialCards();
-        const dbCardCount = initial.length;
         if (draft?.cards?.length) {
           initial = mergeCards(initial, draft.cards);
         }
 
-        agentLog(
-          "useActiveWorkout.ts:init",
-          "session initialized",
-          {
-            workoutDate,
-            splitId,
-            sessionId: sid,
-            resumed,
-            isCompleted,
-            sessionForDateId: sessionForDate?.id ?? null,
-            sessionForDateSplitId: sessionForDate?.split_id ?? null,
-            dbCardCount,
-            draftCardCount: draft?.cards?.length ?? 0,
-            mergedCardCount: initial.length,
-            movementIds: initial.map((c) => c.performedMovementId),
-          },
-          "B,G"
-        );
-
         setCards(initial);
         setCardsReady(true);
         writeDraft(sid, initial);
-      } catch (err) {
-        agentLog(
-          "useActiveWorkout.ts:init",
-          "session init failed",
-          {
-            workoutDate,
-            splitId,
-            error: formatUnknownError(err),
-          },
-          "E"
-        );
+      } catch {
         setSaveStatus("error");
         setCards(buildInitialCards());
         setCardsReady(true);
@@ -535,63 +454,27 @@ export function useActiveWorkout({
   const finishWorkout = useCallback(async () => {
     const sid = sessionIdRef.current;
     if (!sid) {
-      agentLog(
-        "useActiveWorkout.ts:finishWorkout",
-        "missing sessionId",
-        {},
-        "E"
-      );
       throw new Error("No active session. Reload and try again.");
     }
 
-    agentLog(
-      "useActiveWorkout.ts:finishWorkout",
-      "finish started",
-      {
-        sessionId: sid,
-        cardCount: cardsRef.current.length,
-        cardsWithSets: cardsRef.current.filter(cardHasValidSet).length,
-        movementIds: cardsRef.current.map((c) => c.performedMovementId),
-      },
-      "A,D"
-    );
-
     try {
       if (await isWorkoutSessionCompleted(sid)) {
-        agentLog(
-          "useActiveWorkout.ts:finishWorkout",
-          "session already completed",
-          { sessionId: sid },
-          "G"
-        );
         clearDraft(sid);
         return;
       }
 
       await flushSaves();
     } catch (err) {
-      const msg = formatUnknownError(err);
-      agentLog(
-        "useActiveWorkout.ts:finishWorkout",
-        "flushSaves failed",
-        { sessionId: sid, error: msg },
-        "A,G"
-      );
-      throw new Error(`Save failed before finish: ${msg}`);
+      throw new Error(`Save failed before finish: ${formatUnknownError(err)}`);
     }
 
     let ordered: WorkoutCardDraft[];
     try {
       ordered = await persistCardOrder(sid, cardsRef.current);
     } catch (err) {
-      const msg = formatUnknownError(err);
-      agentLog(
-        "useActiveWorkout.ts:finishWorkout",
-        "persistCardOrder failed",
-        { sessionId: sid, error: msg },
-        "D"
+      throw new Error(
+        `Could not save exercise order: ${formatUnknownError(err)}`
       );
-      throw new Error(`Could not save exercise order: ${msg}`);
     }
 
     cardsRef.current = ordered;
@@ -600,22 +483,11 @@ export function useActiveWorkout({
     try {
       await completeWorkoutSession(sid);
     } catch (err) {
-      const msg = formatUnknownError(err);
-      agentLog(
-        "useActiveWorkout.ts:finishWorkout",
-        "completeWorkoutSession failed",
-        { sessionId: sid, error: msg },
-        "A"
+      throw new Error(
+        `Could not mark workout complete: ${formatUnknownError(err)}`
       );
-      throw new Error(`Could not mark workout complete: ${msg}`);
     }
 
-    agentLog(
-      "useActiveWorkout.ts:finishWorkout",
-      "finish succeeded",
-      { sessionId: sid },
-      "A"
-    );
     clearDraft(sid);
   }, [flushSaves]);
 

@@ -1,5 +1,27 @@
 import { parseISO, subDays } from "date-fns";
 
+/** Parse "65,5" or "65.5" into a number. Returns null if invalid. */
+export function parseLocaleNumber(raw: string): number | null {
+  const trimmed = raw.trim().replace(/\s/g, "");
+  if (!trimmed) return null;
+  const normalized = trimmed.replace(",", ".");
+  const value = Number(normalized);
+  if (!Number.isFinite(value)) return null;
+  return value;
+}
+
+/** Finnish-friendly display: 65.5 → "65,5", 8 → "8" */
+export function formatLocaleNumber(
+  value: number,
+  maxDecimals: number
+): string {
+  const rounded =
+    Math.round(value * 10 ** maxDecimals) / 10 ** maxDecimals;
+  const fixed = rounded.toFixed(maxDecimals);
+  const trimmed = fixed.replace(/\.?0+$/, "");
+  return trimmed.replace(".", ",");
+}
+
 /** Epley formula: estimated 1RM (reps capped at 12 — unreliable above that) */
 export function calculateOneRepMax(weightKg: number, reps: number): number {
   if (reps <= 0 || weightKg <= 0) return 0;
@@ -21,7 +43,7 @@ export function getWeeklyWeightChange(
 }
 
 export function formatSetLine(weightKg: number, reps: number): string {
-  return `${weightKg} kg x ${reps} reps`;
+  return `${formatLocaleNumber(weightKg, 2)} kg x ${formatLocaleNumber(reps, 1)} reps`;
 }
 
 export type SetPerformance = { weight_kg: number; reps: number };
@@ -71,17 +93,20 @@ export function formatProgressChange(
     };
   }
 
-  const repDelta = latest.reps - previous.reps;
+  const repDelta =
+    Math.round((latest.reps - previous.reps) * 10) / 10;
   if (repDelta > 0) {
+    const label = formatLocaleNumber(repDelta, 1);
     return {
-      label: `+${repDelta} rep${repDelta === 1 ? "" : "s"}`,
+      label: `+${label} rep${repDelta === 1 ? "" : "s"}`,
       direction: "up",
     };
   }
   if (repDelta < 0) {
     const drop = Math.abs(repDelta);
+    const label = formatLocaleNumber(drop, 1);
     return {
-      label: `-${drop} rep${drop === 1 ? "" : "s"}`,
+      label: `-${label} rep${drop === 1 ? "" : "s"}`,
       direction: "down",
     };
   }

@@ -70,7 +70,7 @@ create table workout_logs (
   session_exercise_id uuid not null references session_exercises (id) on delete cascade,
   set_number int not null check (set_number >= 1),
   weight_kg numeric(6, 2) not null check (weight_kg >= 0),
-  reps int not null check (reps >= 1),
+  reps numeric(4, 1) not null check (reps > 0),
   created_at timestamptz not null default now(),
   unique (session_exercise_id, set_number)
 );

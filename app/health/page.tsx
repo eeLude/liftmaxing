@@ -7,6 +7,7 @@ import { MobileLayout } from "@/components/MobileLayout";
 import { useAuth } from "@/components/AuthProvider";
 import { getTodayHealthLog, upsertHealthLog } from "@/lib/queries";
 import { formatFiDate, toDateString } from "@/lib/dates";
+import { formatLocaleNumber, parseLocaleNumber } from "@/lib/utils";
 
 export default function HealthPage() {
   const queryClient = useQueryClient();
@@ -23,7 +24,9 @@ export default function HealthPage() {
 
   useEffect(() => {
     if (!todayLog) return;
-    if (todayLog.weight_kg != null) setWeight(String(todayLog.weight_kg));
+    if (todayLog.weight_kg != null) {
+      setWeight(formatLocaleNumber(Number(todayLog.weight_kg), 2));
+    }
     if (todayLog.calories != null) setCalories(String(todayLog.calories));
   }, [todayLog]);
 
@@ -31,7 +34,7 @@ export default function HealthPage() {
     mutationFn: () =>
       upsertHealthLog(
         today,
-        weight ? parseFloat(weight) : null,
+        weight ? parseLocaleNumber(weight) : null,
         calories ? parseInt(calories, 10) : null
       ),
     onSuccess: () => {
@@ -66,10 +69,9 @@ export default function HealthPage() {
             Body Weight (kg)
           </span>
           <input
-            type="number"
+            type="text"
             inputMode="decimal"
-            step="0.1"
-            placeholder="e.g. 82.5"
+            placeholder="e.g. 82,5"
             value={weight}
             onChange={(e) => setWeight(e.target.value)}
             className="w-full rounded-xl border border-zinc-700 px-4 py-3 text-lg"

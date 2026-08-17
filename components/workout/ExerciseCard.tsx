@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, ChevronUp, Copy, Plus, Trash2 } from "lucide-react";
 import { getPreviousMovementPerformance } from "@/lib/queries";
-import { formatPreviousSets } from "@/lib/utils";
+import { formatPreviousSets, formatLocaleNumber } from "@/lib/utils";
 import { formatFiDate } from "@/lib/dates";
 import type { Movement, SetInput, WorkoutCardDraft } from "@/types/database";
 
@@ -73,8 +73,8 @@ export function ExerciseCard({
     onChange({
       ...draft,
       sets: previous.sets.map((s) => ({
-        weight_kg: String(s.weight_kg),
-        reps: String(s.reps),
+        weight_kg: formatLocaleNumber(Number(s.weight_kg), 2),
+        reps: formatLocaleNumber(Number(s.reps), 1),
       })),
       note: previous.note ?? draft.note,
     });
@@ -170,18 +170,18 @@ export function ExerciseCard({
               {index + 1}
             </span>
             <input
-              type="number"
-              inputMode="numeric"
-              placeholder="reps"
+              type="text"
+              inputMode="decimal"
+              placeholder="8,5"
               value={set.reps}
               onChange={(e) => updateSet(index, "reps", e.target.value)}
               className="w-16 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-center text-base"
             />
             <span className="text-zinc-500">×</span>
             <input
-              type="number"
+              type="text"
               inputMode="decimal"
-              placeholder="kg"
+              placeholder="65,5"
               value={set.weight_kg}
               onChange={(e) => updateSet(index, "weight_kg", e.target.value)}
               className="w-20 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-center text-base"

@@ -51,6 +51,8 @@ npm run dev
 
 Optional: `supabase/seed-demo.sql` for fake sample data.
 
+**Existing databases:** run one-off migrations in `supabase/` as needed (e.g. `migrate-decimal-reps.sql` for half reps). See [docs/data-trust.md](docs/data-trust.md) for verifying and backing up your logged data.
+
 ## Routes
 
 | Route | Purpose |

@@ -11,9 +11,11 @@ import type {
 } from "@/types/database";
 import {
   calculateOneRepMax,
+  formatLocaleNumber,
   formatProgressChange,
   getWeekStart,
   isCardioMuscle,
+  parseLocaleNumber,
   pickBestSet,
   toDateString,
 } from "@/lib/utils";
@@ -24,31 +26,6 @@ import {
   getDashboardMuscleGroup,
   type DashboardMuscleGroup,
 } from "@/lib/muscleGroups";
-
-function agentLog(
-  location: string,
-  message: string,
-  data: Record<string, unknown>,
-  hypothesisId: string
-) {
-  // #region agent log
-  fetch("http://127.0.0.1:7340/ingest/9f294f2e-eeab-4153-a19e-324f3f26234a", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Debug-Session-Id": "8fe51b",
-    },
-    body: JSON.stringify({
-      sessionId: "8fe51b",
-      location,
-      message,
-      data,
-      timestamp: Date.now(),
-      hypothesisId,
-    }),
-  }).catch(() => {});
-  // #endregion
-}
 
 export async function getSplits(): Promise<WorkoutSplit[]> {
   const { data, error } = await supabase
@@ -418,21 +395,7 @@ export async function createWorkoutSession(
     })
     .select()
     .single();
-  if (error) {
-    agentLog(
-      "queries.ts:createWorkoutSession",
-      "insert failed",
-      { splitId, date, error: error.message, code: error.code },
-      "F"
-    );
-    throw error;
-  }
-  agentLog(
-    "queries.ts:createWorkoutSession",
-    "created session",
-    { sessionId: data.id, splitId, date },
-    "F"
-  );
+  if (error) throw error;
   return data;
 }
 
@@ -458,11 +421,6 @@ export type WorkoutSessionWithSplit = WorkoutSession & { splitName: string };
 export async function getWorkoutSessionForDate(
   date: string
 ): Promise<WorkoutSessionWithSplit | null> {
-  const { count, error: countError } = await supabase
-    .from("workout_sessions")
-    .select("*", { count: "exact", head: true })
-    .eq("date", date);
-
   const { data, error } = await supabase
     .from("workout_sessions")
     .select("*, workout_splits(name)")
@@ -471,19 +429,6 @@ export async function getWorkoutSessionForDate(
     .limit(1)
     .maybeSingle();
   if (error) throw error;
-
-  agentLog(
-    "queries.ts:getWorkoutSessionForDate",
-    "session lookup",
-    {
-      date,
-      sessionCount: countError ? null : count,
-      returnedSessionId: data?.id ?? null,
-      returnedSplitId: data?.split_id ?? null,
-      completedAt: data?.completed_at ?? null,
-    },
-    "F"
-  );
 
   if (!data) return null;
   const { workout_splits, ...session } = data as WorkoutSession & {
@@ -517,8 +462,8 @@ export async function loadSessionCards(
     }[])
       .sort((a, b) => a.set_number - b.set_number)
       .map((l) => ({
-        weight_kg: String(l.weight_kg),
-        reps: String(l.reps),
+        weight_kg: formatLocaleNumber(Number(l.weight_kg), 2),
+        reps: formatLocaleNumber(Number(l.reps), 1),
       }));
 
     const slotId = row.template_slot_id as string | null;
@@ -644,11 +589,19 @@ export async function persistCardOrder(
 function parseValidSets(draft: WorkoutCardDraft) {
   return draft.sets
     .filter((s) => s.weight_kg !== "" && s.reps !== "")
-    .map((s) => ({
-      weight_kg: parseFloat(s.weight_kg),
-      reps: parseInt(s.reps, 10),
-    }))
-    .filter((s) => !Number.isNaN(s.weight_kg) && !Number.isNaN(s.reps));
+    .map((s) => {
+      const weight = parseLocaleNumber(s.weight_kg);
+      const reps = parseLocaleNumber(s.reps);
+      if (weight == null || reps == null) return null;
+      return {
+        weight_kg: Math.round(weight * 100) / 100,
+        reps: Math.round(reps * 10) / 10,
+      };
+    })
+    .filter(
+      (s): s is { weight_kg: number; reps: number } =>
+        s != null && s.weight_kg >= 0 && s.reps > 0
+    );
 }
 
 export async function upsertSessionExercise(
@@ -823,12 +776,6 @@ export async function completeWorkoutSession(sessionId: string) {
     .update({ completed_at: new Date().toISOString() })
     .eq("id", sessionId);
   if (error) {
-    agentLog(
-      "queries.ts:completeWorkoutSession",
-      "update failed",
-      { sessionId, error: error.message, code: error.code },
-      "A"
-    );
     if (error.code === "42703") {
       throw new Error(
         "Could not finish workout. Run supabase/migrate-autosave.sql in Supabase."
