@@ -25,6 +25,31 @@ import {
   type DashboardMuscleGroup,
 } from "@/lib/muscleGroups";
 
+function agentLog(
+  location: string,
+  message: string,
+  data: Record<string, unknown>,
+  hypothesisId: string
+) {
+  // #region agent log
+  fetch("http://127.0.0.1:7340/ingest/9f294f2e-eeab-4153-a19e-324f3f26234a", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Debug-Session-Id": "8fe51b",
+    },
+    body: JSON.stringify({
+      sessionId: "8fe51b",
+      location,
+      message,
+      data,
+      timestamp: Date.now(),
+      hypothesisId,
+    }),
+  }).catch(() => {});
+  // #endregion
+}
+
 export async function getSplits(): Promise<WorkoutSplit[]> {
   const { data, error } = await supabase
     .from("workout_splits")
@@ -393,7 +418,21 @@ export async function createWorkoutSession(
     })
     .select()
     .single();
-  if (error) throw error;
+  if (error) {
+    agentLog(
+      "queries.ts:createWorkoutSession",
+      "insert failed",
+      { splitId, date, error: error.message, code: error.code },
+      "F"
+    );
+    throw error;
+  }
+  agentLog(
+    "queries.ts:createWorkoutSession",
+    "created session",
+    { sessionId: data.id, splitId, date },
+    "F"
+  );
   return data;
 }
 
@@ -419,6 +458,11 @@ export type WorkoutSessionWithSplit = WorkoutSession & { splitName: string };
 export async function getWorkoutSessionForDate(
   date: string
 ): Promise<WorkoutSessionWithSplit | null> {
+  const { count, error: countError } = await supabase
+    .from("workout_sessions")
+    .select("*", { count: "exact", head: true })
+    .eq("date", date);
+
   const { data, error } = await supabase
     .from("workout_sessions")
     .select("*, workout_splits(name)")
@@ -427,6 +471,20 @@ export async function getWorkoutSessionForDate(
     .limit(1)
     .maybeSingle();
   if (error) throw error;
+
+  agentLog(
+    "queries.ts:getWorkoutSessionForDate",
+    "session lookup",
+    {
+      date,
+      sessionCount: countError ? null : count,
+      returnedSessionId: data?.id ?? null,
+      returnedSplitId: data?.split_id ?? null,
+      completedAt: data?.completed_at ?? null,
+    },
+    "F"
+  );
+
   if (!data) return null;
   const { workout_splits, ...session } = data as WorkoutSession & {
     workout_splits: { name: string };
@@ -732,6 +790,12 @@ export async function completeWorkoutSession(sessionId: string) {
     .update({ completed_at: new Date().toISOString() })
     .eq("id", sessionId);
   if (error) {
+    agentLog(
+      "queries.ts:completeWorkoutSession",
+      "update failed",
+      { sessionId, error: error.message, code: error.code },
+      "A"
+    );
     if (error.code === "42703") {
       throw new Error(
         "Could not finish workout. Run supabase/migrate-autosave.sql in Supabase."

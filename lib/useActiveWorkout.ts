@@ -18,6 +18,31 @@ import type { WorkoutCardDraft } from "@/types/database";
 const DEBOUNCE_MS = 1500;
 const DRAFT_PREFIX = "liftmaxxing:draft:";
 
+function agentLog(
+  location: string,
+  message: string,
+  data: Record<string, unknown>,
+  hypothesisId: string
+) {
+  // #region agent log
+  fetch("http://127.0.0.1:7340/ingest/9f294f2e-eeab-4153-a19e-324f3f26234a", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Debug-Session-Id": "8fe51b",
+    },
+    body: JSON.stringify({
+      sessionId: "8fe51b",
+      location,
+      message,
+      data,
+      timestamp: Date.now(),
+      hypothesisId,
+    }),
+  }).catch(() => {});
+  // #endregion
+}
+
 export type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 type DraftPayload = {
@@ -207,15 +232,30 @@ export function useActiveWorkout({
       const current = cardsRef.current[index];
       if (!current) continue;
 
-      const sessionExerciseId = await upsertSessionExercise(
-        sid,
-        current,
-        index + 1
-      );
-      if (sessionExerciseId) {
-        cardsRef.current = cardsRef.current.map((c) =>
-          c.cardId === card.cardId ? { ...c, sessionExerciseId } : c
+      try {
+        const sessionExerciseId = await upsertSessionExercise(
+          sid,
+          current,
+          index + 1
         );
+        if (sessionExerciseId) {
+          cardsRef.current = cardsRef.current.map((c) =>
+            c.cardId === card.cardId ? { ...c, sessionExerciseId } : c
+          );
+        }
+      } catch (err) {
+        agentLog(
+          "useActiveWorkout.ts:flushSaves",
+          "upsertSessionExercise failed",
+          {
+            sessionId: sid,
+            cardId: card.cardId,
+            movementId: current.performedMovementId,
+            error: err instanceof Error ? err.message : String(err),
+          },
+          "A"
+        );
+        throw err;
       }
     }
 
@@ -255,14 +295,43 @@ export function useActiveWorkout({
 
         const draft = readDraft(sid);
         let initial = loaded.length > 0 ? loaded : buildInitialCards();
+        const dbCardCount = initial.length;
         if (draft?.cards?.length) {
           initial = mergeCards(initial, draft.cards);
         }
 
+        agentLog(
+          "useActiveWorkout.ts:init",
+          "session initialized",
+          {
+            workoutDate,
+            splitId,
+            sessionId: sid,
+            resumed,
+            sessionForDateId: sessionForDate?.id ?? null,
+            sessionForDateSplitId: sessionForDate?.split_id ?? null,
+            dbCardCount,
+            draftCardCount: draft?.cards?.length ?? 0,
+            mergedCardCount: initial.length,
+            movementIds: initial.map((c) => c.performedMovementId),
+          },
+          "B,E,F"
+        );
+
         setCards(initial);
         setCardsReady(true);
         writeDraft(sid, initial);
-      } catch {
+      } catch (err) {
+        agentLog(
+          "useActiveWorkout.ts:init",
+          "session init failed",
+          {
+            workoutDate,
+            splitId,
+            error: err instanceof Error ? err.message : String(err),
+          },
+          "E"
+        );
         setSaveStatus("error");
         setCards(buildInitialCards());
         setCardsReady(true);
@@ -417,12 +486,77 @@ export function useActiveWorkout({
 
   const finishWorkout = useCallback(async () => {
     const sid = sessionIdRef.current;
-    if (!sid) return;
-    await flushSaves();
-    const ordered = await persistCardOrder(sid, cardsRef.current);
+    if (!sid) {
+      agentLog(
+        "useActiveWorkout.ts:finishWorkout",
+        "missing sessionId",
+        {},
+        "E"
+      );
+      throw new Error("No active session. Reload and try again.");
+    }
+
+    agentLog(
+      "useActiveWorkout.ts:finishWorkout",
+      "finish started",
+      {
+        sessionId: sid,
+        cardCount: cardsRef.current.length,
+        cardsWithSets: cardsRef.current.filter(cardHasValidSet).length,
+        movementIds: cardsRef.current.map((c) => c.performedMovementId),
+      },
+      "A,D"
+    );
+
+    try {
+      await flushSaves();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      agentLog(
+        "useActiveWorkout.ts:finishWorkout",
+        "flushSaves failed",
+        { sessionId: sid, error: msg },
+        "A"
+      );
+      throw new Error(`Save failed before finish: ${msg}`);
+    }
+
+    let ordered: WorkoutCardDraft[];
+    try {
+      ordered = await persistCardOrder(sid, cardsRef.current);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      agentLog(
+        "useActiveWorkout.ts:finishWorkout",
+        "persistCardOrder failed",
+        { sessionId: sid, error: msg },
+        "D"
+      );
+      throw new Error(`Could not save exercise order: ${msg}`);
+    }
+
     cardsRef.current = ordered;
     setCards(ordered);
-    await completeWorkoutSession(sid);
+
+    try {
+      await completeWorkoutSession(sid);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      agentLog(
+        "useActiveWorkout.ts:finishWorkout",
+        "completeWorkoutSession failed",
+        { sessionId: sid, error: msg },
+        "A"
+      );
+      throw new Error(`Could not mark workout complete: ${msg}`);
+    }
+
+    agentLog(
+      "useActiveWorkout.ts:finishWorkout",
+      "finish succeeded",
+      { sessionId: sid },
+      "A"
+    );
     clearDraft(sid);
   }, [flushSaves]);
 
