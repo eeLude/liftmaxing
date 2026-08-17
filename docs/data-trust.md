@@ -51,9 +51,73 @@ order by ws.date desc, m.name, wl.set_number;
 
 Use the result panel’s download/export option to save CSV.
 
-## Automatic backups
+## Weekly backup (free tier)
 
-Supabase **Database → Backups** (availability depends on your plan). Pro includes point-in-time recovery. For personal use, periodic CSV exports from SQL Editor are a simple extra safety net.
+Supabase **Pro** includes dashboard point-in-time backups. On the **free plan**, run a local export yourself so workouts are not only in the cloud.
+
+### One-time setup
+
+1. Supabase Dashboard → **Project Settings → API** → copy the **service_role** key (secret — full DB access)
+2. Add to `.env.local` (already gitignored):
+
+   ```
+   SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+   ```
+
+   Optionally set `BACKUP_USER_ID` to your auth UUID if multiple users share the project.
+
+3. Never put the service role key in Vercel or any `NEXT_PUBLIC_*` variable.
+
+### Run a backup
+
+From the repo root:
+
+```bash
+npm run backup
+```
+
+This writes `backups/liftmaxxing-YYYY-MM-DD.json` with:
+
+- `workout_sessions`, `session_exercises`, `workout_logs`, `health_logs`
+
+The `backups/` folder is gitignored. Open the JSON and confirm recent dates and sets look right.
+
+**Retention:** keep the last 4–8 weekly files; delete older ones. Optionally copy the folder to OneDrive or Google Drive.
+
+### Schedule weekly (Windows)
+
+1. Open **Task Scheduler** → Create Basic Task
+2. Trigger: Weekly (e.g. Sunday 20:00)
+3. Action: **Start a program**
+   - Program: `npm.cmd` (or full path to npm)
+   - Arguments: `run backup`
+   - Start in: `C:\Users\eemil\Documents\liftmaxxing` (your repo path)
+4. Ensure `.env.local` exists in that folder so the script can read your keys
+
+Alternative: skip the scheduler and set a phone reminder to run `npm run backup` once a week.
+
+### Restore
+
+There is no one-click restore yet. Backups are an **insurance copy**. To recover data:
+
+- Inspect the JSON and re-insert rows via Supabase SQL Editor, or
+- Contact future-you to add a restore script if needed
+
+Catalog tables (`movements`, splits) can be recreated from [`reset.sql`](../supabase/reset.sql) if you ever rebuild from scratch.
+
+### Optional: full database dump (monthly)
+
+For a complete Postgres snapshot, use **Database → Connection string** in Supabase with [pg_dump](https://www.postgresql.org/docs/current/app-pgdump.html) (requires PostgreSQL tools installed):
+
+```bash
+pg_dump "postgresql://..." -Fc -f backups/full-YYYY-MM-DD.dump
+```
+
+Heavier than JSON; useful as a occasional full snapshot, not weekly.
+
+## Automatic backups (Supabase Pro)
+
+Supabase **Database → Backups** on Pro includes point-in-time recovery. Free tier: use the weekly JSON export above instead.
 
 ## Migrations
 
