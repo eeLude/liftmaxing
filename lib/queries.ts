@@ -698,6 +698,18 @@ export async function upsertSessionExercise(
   }
 
   if (sessionExerciseId) {
+    const { data: existingRow, error: existingError } = await supabase
+      .from("session_exercises")
+      .select("id")
+      .eq("id", sessionExerciseId)
+      .maybeSingle();
+    if (existingError) throw existingError;
+    if (!existingRow) {
+      sessionExerciseId = null;
+    }
+  }
+
+  if (sessionExerciseId) {
     const { error: updateError } = await supabase
       .from("session_exercises")
       .update({ note, sort_order: sortOrder, movement_id: draft.performedMovementId })
@@ -717,7 +729,16 @@ export async function upsertSessionExercise(
       reps: set.reps,
     }));
     const { error: insertError } = await supabase.from("workout_logs").insert(rows);
-    if (insertError) throw insertError;
+    if (insertError) {
+      if (insertError.code === "23503") {
+        return upsertSessionExercise(
+          sessionId,
+          { ...draft, sessionExerciseId: undefined },
+          sortOrder
+        );
+      }
+      throw insertError;
+    }
     return sessionExerciseId;
   }
 
@@ -774,6 +795,18 @@ export async function deleteSessionExercise(sessionExerciseId: string) {
     .delete()
     .eq("id", sessionExerciseId);
   if (error) throw error;
+}
+
+export async function isWorkoutSessionCompleted(
+  sessionId: string
+): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("workout_sessions")
+    .select("completed_at")
+    .eq("id", sessionId)
+    .maybeSingle();
+  if (error) throw error;
+  return data?.completed_at != null;
 }
 
 export async function completeWorkoutSession(sessionId: string) {

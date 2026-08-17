@@ -9,6 +9,7 @@ import {
   deleteWorkoutSession,
   getLastCompletedSessionCards,
   getWorkoutSessionForDate,
+  isWorkoutSessionCompleted,
   loadSessionCards,
   persistCardOrder,
   upsertSessionExercise,
@@ -24,6 +25,14 @@ function agentLog(
   data: Record<string, unknown>,
   hypothesisId: string
 ) {
+  const entry = {
+    sessionId: "8fe51b",
+    location,
+    message,
+    data,
+    timestamp: Date.now(),
+    hypothesisId,
+  };
   // #region agent log
   fetch("http://127.0.0.1:7340/ingest/9f294f2e-eeab-4153-a19e-324f3f26234a", {
     method: "POST",
@@ -31,16 +40,45 @@ function agentLog(
       "Content-Type": "application/json",
       "X-Debug-Session-Id": "8fe51b",
     },
-    body: JSON.stringify({
-      sessionId: "8fe51b",
-      location,
-      message,
-      data,
-      timestamp: Date.now(),
-      hypothesisId,
-    }),
+    body: JSON.stringify(entry),
   }).catch(() => {});
+  try {
+    const prev = JSON.parse(
+      localStorage.getItem("liftmaxxing:debug-8fe51b") ?? "[]"
+    ) as unknown[];
+    prev.push(entry);
+    localStorage.setItem(
+      "liftmaxxing:debug-8fe51b",
+      JSON.stringify(prev.slice(-20))
+    );
+  } catch {
+    /* ignore quota errors */
+  }
   // #endregion
+}
+
+function formatUnknownError(err: unknown): string {
+  if (err && typeof err === "object") {
+    const o = err as {
+      message?: unknown;
+      code?: unknown;
+      details?: unknown;
+      hint?: unknown;
+    };
+    const parts: string[] = [];
+    if (typeof o.message === "string" && o.message) parts.push(o.message);
+    if (typeof o.code === "string" && o.code) parts.push(`code=${o.code}`);
+    if (typeof o.details === "string" && o.details) parts.push(o.details);
+    if (typeof o.hint === "string" && o.hint) parts.push(o.hint);
+    if (parts.length > 0) return parts.join(" · ");
+    try {
+      return JSON.stringify(err);
+    } catch {
+      return "[unserializable error]";
+    }
+  }
+  if (err instanceof Error) return err.message || err.name;
+  return String(err);
 }
 
 export type SaveStatus = "idle" | "saving" | "saved" | "error";
@@ -251,11 +289,15 @@ export function useActiveWorkout({
             sessionId: sid,
             cardId: card.cardId,
             movementId: current.performedMovementId,
-            error: err instanceof Error ? err.message : String(err),
+            movementName: current.performedName,
+            sessionExerciseId: current.sessionExerciseId ?? null,
+            error: formatUnknownError(err),
           },
-          "A"
+          "A,G"
         );
-        throw err;
+        throw new Error(
+          `${formatUnknownError(err)} (${current.performedName})`
+        );
       }
     }
 
@@ -293,7 +335,12 @@ export function useActiveWorkout({
         setSessionId(sid);
         setIsResuming(resumed);
 
-        const draft = readDraft(sid);
+        const isCompleted = !!sessionForDate?.completed_at;
+        if (isCompleted) {
+          clearDraft(sid);
+        }
+
+        const draft = isCompleted ? null : readDraft(sid);
         let initial = loaded.length > 0 ? loaded : buildInitialCards();
         const dbCardCount = initial.length;
         if (draft?.cards?.length) {
@@ -308,6 +355,7 @@ export function useActiveWorkout({
             splitId,
             sessionId: sid,
             resumed,
+            isCompleted,
             sessionForDateId: sessionForDate?.id ?? null,
             sessionForDateSplitId: sessionForDate?.split_id ?? null,
             dbCardCount,
@@ -315,7 +363,7 @@ export function useActiveWorkout({
             mergedCardCount: initial.length,
             movementIds: initial.map((c) => c.performedMovementId),
           },
-          "B,E,F"
+          "B,G"
         );
 
         setCards(initial);
@@ -328,7 +376,7 @@ export function useActiveWorkout({
           {
             workoutDate,
             splitId,
-            error: err instanceof Error ? err.message : String(err),
+            error: formatUnknownError(err),
           },
           "E"
         );
@@ -509,14 +557,25 @@ export function useActiveWorkout({
     );
 
     try {
+      if (await isWorkoutSessionCompleted(sid)) {
+        agentLog(
+          "useActiveWorkout.ts:finishWorkout",
+          "session already completed",
+          { sessionId: sid },
+          "G"
+        );
+        clearDraft(sid);
+        return;
+      }
+
       await flushSaves();
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = formatUnknownError(err);
       agentLog(
         "useActiveWorkout.ts:finishWorkout",
         "flushSaves failed",
         { sessionId: sid, error: msg },
-        "A"
+        "A,G"
       );
       throw new Error(`Save failed before finish: ${msg}`);
     }
@@ -525,7 +584,7 @@ export function useActiveWorkout({
     try {
       ordered = await persistCardOrder(sid, cardsRef.current);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = formatUnknownError(err);
       agentLog(
         "useActiveWorkout.ts:finishWorkout",
         "persistCardOrder failed",
@@ -541,7 +600,7 @@ export function useActiveWorkout({
     try {
       await completeWorkoutSession(sid);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = formatUnknownError(err);
       agentLog(
         "useActiveWorkout.ts:finishWorkout",
         "completeWorkoutSession failed",
