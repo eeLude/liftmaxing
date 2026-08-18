@@ -7,6 +7,7 @@ drop table if exists workout_logs cascade;
 drop table if exists session_exercises cascade;
 drop table if exists workout_sessions cascade;
 drop table if exists health_logs cascade;
+drop table if exists user_profiles cascade;
 drop table if exists split_exercises cascade;
 drop table if exists exercises cascade;
 drop table if exists movements cascade;
@@ -91,6 +92,12 @@ create table health_logs (
   unique (user_id, date)
 );
 
+create table user_profiles (
+  user_id uuid primary key references auth.users (id) on delete cascade default auth.uid(),
+  goal_type text check (goal_type in ('bulk', 'cut', 'maintain')),
+  updated_at timestamptz not null default now()
+);
+
 -- ---------------------------------------------------------------------------
 -- RLS (dev-friendly anon policies)
 -- ---------------------------------------------------------------------------
@@ -102,6 +109,7 @@ alter table workout_sessions enable row level security;
 alter table session_exercises enable row level security;
 alter table workout_logs enable row level security;
 alter table health_logs enable row level security;
+alter table user_profiles enable row level security;
 
 drop policy if exists "anon_all" on workout_splits;
 drop policy if exists "anon_all" on movements;
@@ -119,6 +127,7 @@ drop policy if exists "users_own_sessions" on workout_sessions;
 drop policy if exists "users_own_session_exercises" on session_exercises;
 drop policy if exists "users_own_workout_logs" on workout_logs;
 drop policy if exists "users_own_health_logs" on health_logs;
+drop policy if exists "users_own_profiles" on user_profiles;
 
 create policy "auth_read_splits" on workout_splits
   for select to authenticated using (true);
@@ -174,6 +183,11 @@ create policy "users_own_workout_logs" on workout_logs
   );
 
 create policy "users_own_health_logs" on health_logs
+  for all to authenticated
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+create policy "users_own_profiles" on user_profiles
   for all to authenticated
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);

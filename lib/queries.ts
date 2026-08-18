@@ -5,25 +5,29 @@ import type {
   Movement,
   PreviousExerciseData,
   SplitExercise,
+  UserProfile,
   WorkoutCardDraft,
   WorkoutSession,
   WorkoutSplit,
 } from "@/types/database";
+import type { GoalType } from "@/lib/goals";
 import {
   calculateOneRepMax,
   formatLocaleNumber,
   formatProgressChange,
   getWeekStart,
   isCardioMuscle,
+  listMondayWeekStarts,
   parseLocaleNumber,
   pickBestSet,
   toDateString,
 } from "@/lib/utils";
-import { formatFiDate } from "@/lib/dates";
+import { formatFiDate, formatFiDateShort } from "@/lib/dates";
 import {
   DASHBOARD_MUSCLE_GROUPS,
   emptyMuscleGroupProgress,
   getDashboardMuscleGroup,
+  VOLUME_MUSCLES,
   type DashboardMuscleGroup,
 } from "@/lib/muscleGroups";
 
@@ -283,57 +287,81 @@ export type WeeklyTrainingVolume = {
   weekLabel: string;
   sets: number;
   sessions: number;
+  isCurrentWeek: boolean;
 };
+
+type VolumeSession = { id: string; date: string };
+
+async function getVolumeSessions(
+  fromDate: string,
+  toDate: string
+): Promise<VolumeSession[]> {
+  const { data, error } = await supabase
+    .from("workout_sessions")
+    .select("id, date")
+    .gte("date", fromDate)
+    .lte("date", toDate)
+    .or(`completed_at.not.is.null,date.eq.${toDate}`)
+    .order("date");
+
+  if (error) throw error;
+  return data ?? [];
+}
+
+function weekKeyForSessionDate(date: string): string {
+  return toDateString(getWeekStart(new Date(`${date}T12:00:00`)));
+}
 
 export async function getWeeklyTrainingVolume(
   weeks = 12
 ): Promise<WeeklyTrainingVolume[]> {
-  const since = new Date();
-  since.setDate(since.getDate() - weeks * 7);
+  const weekStarts = listMondayWeekStarts(weeks);
+  const currentWeek = weekStarts[weekStarts.length - 1];
+  const today = toDateString(new Date());
+  const sessions = await getVolumeSessions(weekStarts[0], today);
 
-  const { data: sessions, error: sessionError } = await supabase
-    .from("workout_sessions")
-    .select("id, date")
-    .gte("date", toDateString(since))
-    .order("date");
-
-  if (sessionError) throw sessionError;
-  if (!sessions?.length) return [];
-
-  const sessionIds = sessions.map((s) => s.id);
   const sessionsByWeek = new Map<string, Set<string>>();
-
+  for (const week of weekStarts) sessionsByWeek.set(week, new Set());
   for (const s of sessions) {
-    const week = toDateString(getWeekStart(new Date(s.date + "T12:00:00")));
-    if (!sessionsByWeek.has(week)) sessionsByWeek.set(week, new Set());
-    sessionsByWeek.get(week)!.add(s.id);
+    const week = weekKeyForSessionDate(s.date);
+    sessionsByWeek.get(week)?.add(s.id);
   }
-
-  const { data: sessionExercises, error: seError } = await supabase
-    .from("session_exercises")
-    .select("id, session_id, workout_logs(id)")
-    .in("session_id", sessionIds);
-
-  if (seError) throw seError;
 
   const setsByWeek = new Map<string, number>();
-  for (const se of sessionExercises ?? []) {
-    const logs = se.workout_logs as { id: string }[] | null;
-    if (!logs?.length) continue;
-    const session = sessions.find((s) => s.id === se.session_id);
-    if (!session) continue;
-    const week = toDateString(getWeekStart(new Date(session.date + "T12:00:00")));
-    setsByWeek.set(week, (setsByWeek.get(week) ?? 0) + logs.length);
+  if (sessions.length > 0) {
+    const { data: sessionExercises, error: seError } = await supabase
+      .from("session_exercises")
+      .select("id, session_id, movements(target_muscle), workout_logs(id)")
+      .in(
+        "session_id",
+        sessions.map((s) => s.id)
+      );
+
+    if (seError) throw seError;
+
+    for (const se of sessionExercises ?? []) {
+      const logs = se.workout_logs as { id: string }[] | null;
+      if (!logs?.length) continue;
+      const muscle = (se.movements as { target_muscle: string } | null)
+        ?.target_muscle;
+      if (!muscle || isCardioMuscle(muscle)) continue;
+      const session = sessions.find((s) => s.id === se.session_id);
+      if (!session) continue;
+      const week = weekKeyForSessionDate(session.date);
+      setsByWeek.set(week, (setsByWeek.get(week) ?? 0) + logs.length);
+    }
   }
 
-  return Array.from(sessionsByWeek.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([week, sessionSet]) => ({
+  return weekStarts.map((week) => {
+    const isCurrentWeek = week === currentWeek;
+    return {
       week,
-      weekLabel: formatFiDate(week),
+      weekLabel: isCurrentWeek ? "this week" : formatFiDateShort(week),
       sets: setsByWeek.get(week) ?? 0,
-      sessions: sessionSet.size,
-    }));
+      sessions: sessionsByWeek.get(week)?.size ?? 0,
+      isCurrentWeek,
+    };
+  });
 }
 
 export async function getPreviousMovementPerformance(
@@ -896,35 +924,47 @@ export type MuscleVolume = {
 
 export async function getWeeklyMuscleVolume(): Promise<MuscleVolume[]> {
   const weekStartStr = toDateString(getWeekStart(new Date()));
-
-  const { data: sessions, error: sessionError } = await supabase
-    .from("workout_sessions")
-    .select("id")
-    .gte("date", weekStartStr);
-
-  if (sessionError) throw sessionError;
-  if (!sessions?.length) return [];
-
-  const sessionIds = sessions.map((s) => s.id);
-
-  const { data, error } = await supabase
-    .from("session_exercises")
-    .select("id, movements(target_muscle), workout_logs(id)")
-    .in("session_id", sessionIds);
-
-  if (error) throw error;
+  const today = toDateString(new Date());
+  const sessions = await getVolumeSessions(weekStartStr, today);
 
   const counts = new Map<string, number>();
-  for (const row of data ?? []) {
-    const logs = row.workout_logs as { id: string }[] | null;
-    if (!logs?.length) continue;
-    const muscle = (row.movements as { target_muscle: string }).target_muscle;
-    counts.set(muscle, (counts.get(muscle) ?? 0) + logs.length);
+  for (const muscle of VOLUME_MUSCLES) counts.set(muscle, 0);
+
+  if (sessions.length > 0) {
+    const { data, error } = await supabase
+      .from("session_exercises")
+      .select("id, movements(target_muscle), workout_logs(id)")
+      .in(
+        "session_id",
+        sessions.map((s) => s.id)
+      );
+
+    if (error) throw error;
+
+    for (const row of data ?? []) {
+      const logs = row.workout_logs as { id: string }[] | null;
+      if (!logs?.length) continue;
+      const muscle = (row.movements as { target_muscle: string } | null)
+        ?.target_muscle;
+      if (!muscle || isCardioMuscle(muscle)) continue;
+      counts.set(muscle, (counts.get(muscle) ?? 0) + logs.length);
+    }
   }
 
-  return Array.from(counts.entries())
+  const canonical = VOLUME_MUSCLES.map((muscle) => ({
+    muscle,
+    sets: counts.get(muscle) ?? 0,
+  }));
+
+  const extras = Array.from(counts.entries())
+    .filter(
+      ([muscle]) =>
+        !(VOLUME_MUSCLES as readonly string[]).includes(muscle)
+    )
     .map(([muscle, sets]) => ({ muscle, sets }))
     .sort((a, b) => b.sets - a.sets);
+
+  return [...canonical, ...extras];
 }
 
 export type WorkoutDay = {
@@ -1037,6 +1077,43 @@ export async function getTodayHealthLog(): Promise<HealthLog | null> {
     .select("*")
     .eq("date", today)
     .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+export async function getUserProfile(): Promise<UserProfile | null> {
+  const { data, error } = await supabase
+    .from("user_profiles")
+    .select("*")
+    .maybeSingle();
+  if (error) {
+    // Table missing until migrate-user-goals.sql is run.
+    if (error.code === "42P01" || error.code === "PGRST205") return null;
+    throw error;
+  }
+  return data;
+}
+
+export async function upsertUserGoal(goalType: GoalType): Promise<UserProfile> {
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+  if (authError) throw authError;
+  if (!user) throw new Error("Not authenticated");
+
+  const { data, error } = await supabase
+    .from("user_profiles")
+    .upsert(
+      {
+        user_id: user.id,
+        goal_type: goalType,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id" }
+    )
+    .select()
+    .single();
   if (error) throw error;
   return data;
 }

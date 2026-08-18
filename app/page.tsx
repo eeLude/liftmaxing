@@ -21,6 +21,7 @@ import {
   getHealthLogs,
   getMovementsWithHistory,
   getMuscleGroupProgress,
+  getUserProfile,
   getWeeklyMuscleVolume,
   getWeeklyTrainingVolume,
 } from "@/lib/queries";
@@ -52,12 +53,18 @@ export default function DashboardPage() {
     queryFn: getMuscleGroupProgress,
   });
 
+  const profileQuery = useQuery({
+    queryKey: ["user-profile"],
+    queryFn: getUserProfile,
+  });
+
   const dashboardQueries = [
     movementsQuery,
     healthQuery,
     volumeQuery,
     trainingVolumeQuery,
     muscleGroupQuery,
+    profileQuery,
   ];
 
   const isInitialLoading = dashboardQueries.some((q) => q.isLoading);
@@ -124,7 +131,10 @@ export default function DashboardPage() {
         {healthQuery.isLoading ? (
           <ChartSkeleton />
         ) : (
-          <BodyWeightChart logs={healthQuery.data ?? []} />
+          <BodyWeightChart
+            logs={healthQuery.data ?? []}
+            goalType={profileQuery.data?.goal_type ?? null}
+          />
         )}
       </section>
 
@@ -150,9 +160,12 @@ export default function DashboardPage() {
       </section>
 
       <section className="mb-6 rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-400">
-          Weekly Training Volume
+        <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-zinc-400">
+          Weekly Training Sets
         </h2>
+        <p className="mb-3 text-xs text-zinc-500">
+          Lifting sets per Monday–Sunday week
+        </p>
         {trainingVolumeQuery.isLoading ? (
           <ChartSkeleton />
         ) : (
@@ -161,8 +174,8 @@ export default function DashboardPage() {
       </section>
 
       <section className="mb-6 rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-400">
-          This Week by Muscle Group
+        <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-zinc-400">
+          This Week&apos;s Sets by Muscle
         </h2>
         {volumeQuery.isLoading ? (
           <ChartSkeleton />

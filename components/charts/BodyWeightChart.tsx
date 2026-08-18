@@ -11,13 +11,30 @@ import {
 } from "recharts";
 import { ChartContainer } from "@/components/charts/ChartContainer";
 import { formatFiDate } from "@/lib/dates";
+import {
+  evaluateGoalRate,
+  formatSignedKg,
+  formatSignedPct,
+  getGoalKgBand,
+  getRateStatusClass,
+  getRateStatusCopy,
+  getSmoothedWeeklyWeightRate,
+  hasEnoughWeightHistory,
+  type GoalType,
+} from "@/lib/goals";
 import { getWeeklyWeightChange, rollingAverage } from "@/lib/utils";
 import type { HealthLog } from "@/types/database";
 
 const GRID = "#3f3f46";
 const TICK = "#a1a1aa";
 
-export function BodyWeightChart({ logs }: { logs: HealthLog[] }) {
+export function BodyWeightChart({
+  logs,
+  goalType,
+}: {
+  logs: HealthLog[];
+  goalType: GoalType | null;
+}) {
   const chartData = useMemo(() => {
     const withWeight = logs.filter((l) => l.weight_kg != null);
     const weights = withWeight.map((l) => Number(l.weight_kg));
@@ -33,6 +50,16 @@ export function BodyWeightChart({ logs }: { logs: HealthLog[] }) {
 
   const latest = chartData.at(-1)?.weight;
   const weeklyChange = getWeeklyWeightChange(chartData);
+  const enoughHistory = hasEnoughWeightHistory(chartData);
+  const rate = enoughHistory
+    ? getSmoothedWeeklyWeightRate(chartData)
+    : null;
+  const status =
+    goalType && rate
+      ? evaluateGoalRate(goalType, rate.pctPerWeek)
+      : null;
+  const kgBand =
+    goalType && latest != null ? getGoalKgBand(goalType, latest) : null;
 
   if (!chartData.length) {
     return (
@@ -45,15 +72,43 @@ export function BodyWeightChart({ logs }: { logs: HealthLog[] }) {
   return (
     <div>
       {latest != null && (
-        <p className="mb-3 text-sm text-zinc-400">
-          <span className="text-zinc-300">Latest {latest} kg</span>
-          {weeklyChange != null && (
-            <span className="ml-2">
-              · Weekly {weeklyChange > 0 ? "+" : ""}
-              {weeklyChange} kg
-            </span>
+        <div className="mb-3 space-y-1">
+          <p className="text-sm text-zinc-400">
+            <span className="text-zinc-300">Latest {latest} kg</span>
+            {rate != null ? (
+              <span className="ml-2">
+                · {formatSignedKg(rate.kgPerWeek)} ·{" "}
+                {formatSignedPct(rate.pctPerWeek)}/wk
+              </span>
+            ) : weeklyChange != null ? (
+              <span className="ml-2">
+                · Weekly {weeklyChange > 0 ? "+" : ""}
+                {weeklyChange} kg
+              </span>
+            ) : null}
+          </p>
+          {!enoughHistory && (
+            <p className="text-xs text-zinc-500">
+              Need about 2 weeks of logs to judge rate.
+            </p>
           )}
-        </p>
+          {goalType == null && (
+            <p className="text-xs text-zinc-500">
+              Pick Bulk, Cut, or Maintain on the Health tab to see if you are
+              on track.
+            </p>
+          )}
+          {goalType && status && rate && kgBand && (
+            <p className={`text-xs ${getRateStatusClass(status)}`}>
+              {getRateStatusCopy(goalType, status)}
+              <span className="text-zinc-500">
+                {" "}
+                · Aim {formatSignedKg(kgBand.minKg)} to{" "}
+                {formatSignedKg(kgBand.maxKg)}/wk
+              </span>
+            </p>
+          )}
+        </div>
       )}
       <ChartContainer height={200}>
         <LineChart data={chartData}>
@@ -78,7 +133,9 @@ export function BodyWeightChart({ logs }: { logs: HealthLog[] }) {
               color: "#fafafa",
             }}
             labelFormatter={(_, payload) => {
-              const row = payload?.[0]?.payload as { dateLabel?: string } | undefined;
+              const row = payload?.[0]?.payload as
+                | { dateLabel?: string }
+                | undefined;
               return row?.dateLabel ?? "";
             }}
             formatter={(value: number, name: string) => [

@@ -60,6 +60,12 @@ export type HealthLog = {
   created_at: string;
 };
 
+export type UserProfile = {
+  user_id: string;
+  goal_type: "bulk" | "cut" | "maintain" | null;
+  updated_at: string;
+};
+
 type Relationship = {
   foreignKeyName: string;
   columns: string[];
@@ -149,6 +155,16 @@ export type Database = {
         ]
       >;
       health_logs: DbTable<HealthLog>;
+      user_profiles: {
+        Row: UserProfile;
+        Insert: {
+          user_id?: string;
+          goal_type?: UserProfile["goal_type"];
+          updated_at?: string;
+        };
+        Update: Partial<UserProfile>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

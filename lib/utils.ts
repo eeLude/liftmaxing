@@ -156,6 +156,31 @@ export function getWeekStart(date: Date): Date {
   return d;
 }
 
+/** 1 = Monday … 7 = Sunday (local calendar). */
+export function getIsoWeekDay(date: Date = new Date()): number {
+  const day = date.getDay();
+  return day === 0 ? 7 : day;
+}
+
+/** Monday-start week keys, oldest first, including the current week. */
+export function listMondayWeekStarts(
+  weekCount: number,
+  from: Date = new Date()
+): string[] {
+  const current = getWeekStart(from);
+  const weeks: string[] = [];
+  for (let i = weekCount - 1; i >= 0; i--) {
+    const d = new Date(current);
+    d.setDate(current.getDate() - i * 7);
+    weeks.push(toDateString(d));
+  }
+  return weeks;
+}
+
+/** Local calendar date as YYYY-MM-DD (not UTC). */
 export function toDateString(date: Date): string {
-  return date.toISOString().slice(0, 10);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }

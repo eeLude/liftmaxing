@@ -10,6 +10,12 @@ export function formatFiDate(iso: string | Date): string {
   return format(d, "d.M.yyyy", { locale: fi });
 }
 
+/** Short Finnish date: 7.8 */
+export function formatFiDateShort(iso: string | Date): string {
+  const d = typeof iso === "string" ? parseISO(iso) : iso;
+  return format(d, "d.M", { locale: fi });
+}
+
 /** Finnish month + year for calendar header: elokuu 2026 */
 export function formatFiMonthYear(year: number, month: number): string {
   const d = new Date(year, month - 1, 1);
