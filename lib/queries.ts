@@ -1,6 +1,8 @@
 import { supabase } from "@/lib/supabase";
 import type { QueryClient } from "@tanstack/react-query";
 import type {
+  Book,
+  BookStatus,
   HealthLog,
   Movement,
   PreviousExerciseData,
@@ -11,6 +13,7 @@ import type {
   WorkoutSplit,
 } from "@/types/database";
 import type { GoalType } from "@/lib/goals";
+import { computeBookYearStats, type BookYearStats } from "@/lib/books";
 import {
   calculateOneRepMax,
   formatLocaleNumber,
@@ -1116,4 +1119,89 @@ export async function upsertUserGoal(goalType: GoalType): Promise<UserProfile> {
     .single();
   if (error) throw error;
   return data;
+}
+
+function isMissingRelationError(error: { code?: string }): boolean {
+  return error.code === "42P01" || error.code === "PGRST205";
+}
+
+export type BookInput = {
+  id?: string;
+  title: string;
+  author: string | null;
+  status: BookStatus;
+  started_on: string | null;
+  finished_on: string | null;
+  page_count: number | null;
+  rating: number | null;
+  note: string | null;
+};
+
+export async function getBooks(): Promise<Book[]> {
+  const { data, error } = await supabase
+    .from("books")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (error) {
+    if (isMissingRelationError(error)) return [];
+    throw error;
+  }
+  return data ?? [];
+}
+
+export async function getBookYearStats(): Promise<BookYearStats> {
+  const books = await getBooks();
+  return computeBookYearStats(books);
+}
+
+export async function upsertBook(input: BookInput): Promise<Book> {
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+  if (authError) throw authError;
+  if (!user) throw new Error("Not authenticated");
+
+  const title = input.title.trim();
+  if (!title) throw new Error("Title is required");
+
+  let finishedOn = input.finished_on;
+  if (input.status === "finished" && !finishedOn) {
+    finishedOn = toDateString(new Date());
+  }
+  if (input.status === "reading") {
+    finishedOn = null;
+  }
+
+  const row = {
+    user_id: user.id,
+    title,
+    author: input.author?.trim() ? input.author.trim() : null,
+    status: input.status,
+    started_on: input.started_on,
+    finished_on: finishedOn,
+    page_count: input.page_count,
+    rating: input.rating,
+    note: input.note?.trim() ? input.note.trim() : null,
+  };
+
+  if (input.id) {
+    const { data, error } = await supabase
+      .from("books")
+      .update(row)
+      .eq("id", input.id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  const { data, error } = await supabase.from("books").insert(row).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteBook(id: string): Promise<void> {
+  const { error } = await supabase.from("books").delete().eq("id", id);
+  if (error) throw error;
 }

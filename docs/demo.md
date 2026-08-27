@@ -13,8 +13,8 @@ Add a short screen recording here and link it from the README:
 Suggested clips (~30–60s each):
 
 1. Sign in → pick Push split → log a set (show autosave)
-2. Dashboard scroll: activity graph, calendar, strength chart
-3. Finish workout → dot appears on calendar
+2. Hub home, then Gym stats: activity graph, calendar, strength chart
+3. Finish workout → return to hub; log a finished book
 
 ## Screenshots (optional)
 

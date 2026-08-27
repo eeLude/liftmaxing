@@ -8,6 +8,7 @@ drop table if exists workout_logs cascade;
 drop table if exists session_exercises cascade;
 drop table if exists workout_sessions cascade;
 drop table if exists health_logs cascade;
+drop table if exists books cascade;
 drop table if exists user_profiles cascade;
 drop table if exists split_exercises cascade;
 drop table if exists exercises cascade;
@@ -92,6 +93,23 @@ create table user_profiles (
   updated_at timestamptz not null default now()
 );
 
+create table books (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade default auth.uid(),
+  title text not null,
+  author text,
+  status text not null check (status in ('reading', 'finished')),
+  started_on date,
+  finished_on date,
+  page_count int check (page_count > 0),
+  rating numeric(2, 1) check (rating >= 1 and rating <= 5),
+  note text,
+  created_at timestamptz not null default now()
+);
+
+create index books_user_status_idx on books (user_id, status);
+create index books_user_finished_idx on books (user_id, finished_on desc);
+
 alter table workout_splits enable row level security;
 alter table movements enable row level security;
 alter table split_exercises enable row level security;
@@ -100,6 +118,7 @@ alter table session_exercises enable row level security;
 alter table workout_logs enable row level security;
 alter table health_logs enable row level security;
 alter table user_profiles enable row level security;
+alter table books enable row level security;
 
 drop policy if exists "anon_all" on workout_splits;
 drop policy if exists "anon_all" on movements;
@@ -118,6 +137,7 @@ drop policy if exists "users_own_session_exercises" on session_exercises;
 drop policy if exists "users_own_workout_logs" on workout_logs;
 drop policy if exists "users_own_health_logs" on health_logs;
 drop policy if exists "users_own_profiles" on user_profiles;
+drop policy if exists "users_own_books" on books;
 
 create policy "auth_read_splits" on workout_splits
   for select to authenticated using (true);
@@ -178,6 +198,11 @@ create policy "users_own_health_logs" on health_logs
   with check (auth.uid() = user_id);
 
 create policy "users_own_profiles" on user_profiles
+  for all to authenticated
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+create policy "users_own_books" on books
   for all to authenticated
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);

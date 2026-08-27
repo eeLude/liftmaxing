@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, Heart, Home } from "lucide-react";
+import { Activity, BookOpen, Home } from "lucide-react";
 
 const navItems = [
-  { href: "/", label: "Dashboard", icon: Home },
-  { href: "/workout", label: "Workout", icon: Activity },
-  { href: "/health", label: "Health", icon: Heart },
+  { href: "/", label: "Home", icon: Home },
+  { href: "/gym", label: "Workout", icon: Activity, match: ["/gym", "/workout"] },
+  { href: "/books", label: "Books", icon: BookOpen },
 ];
 
 export function BottomNav() {
@@ -16,11 +16,14 @@ export function BottomNav() {
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-zinc-800 bg-zinc-950/95 backdrop-blur safe-bottom">
       <div className="mx-auto flex max-w-lg items-stretch justify-around">
-        {navItems.map(({ href, label, icon: Icon }) => {
+        {navItems.map(({ href, label, icon: Icon, match }) => {
+          const prefixes = match ?? [href];
           const active =
             href === "/"
               ? pathname === "/"
-              : pathname.startsWith(href);
+              : prefixes.some((p) =>
+                  p === "/" ? pathname === "/" : pathname.startsWith(p)
+                );
 
           return (
             <Link

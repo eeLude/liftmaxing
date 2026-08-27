@@ -66,6 +66,22 @@ export type UserProfile = {
   updated_at: string;
 };
 
+export type BookStatus = "reading" | "finished";
+
+export type Book = {
+  id: string;
+  user_id: string;
+  title: string;
+  author: string | null;
+  status: BookStatus;
+  started_on: string | null;
+  finished_on: string | null;
+  page_count: number | null;
+  rating: number | null;
+  note: string | null;
+  created_at: string;
+};
+
 type Relationship = {
   foreignKeyName: string;
   columns: string[];
@@ -155,6 +171,7 @@ export type Database = {
         ]
       >;
       health_logs: DbTable<HealthLog>;
+      books: DbTable<Book>;
       user_profiles: {
         Row: UserProfile;
         Insert: {

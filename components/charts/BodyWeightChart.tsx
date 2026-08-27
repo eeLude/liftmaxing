@@ -64,7 +64,7 @@ export function BodyWeightChart({
   if (!chartData.length) {
     return (
       <p className="text-sm text-zinc-500">
-        Log body weight on the Health tab to track trends.
+        Log body weight below to track trends.
       </p>
     );
   }
@@ -94,8 +94,8 @@ export function BodyWeightChart({
           )}
           {goalType == null && (
             <p className="text-xs text-zinc-500">
-              Pick Bulk, Cut, or Maintain on the Health tab to see if you are
-              on track.
+              Pick Bulk, Cut, or Maintain when logging weight so we can judge
+              if you are on track.
             </p>
           )}
           {goalType && status && rate && kgBand && (

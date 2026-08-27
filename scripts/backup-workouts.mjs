@@ -53,6 +53,24 @@ async function fetchAll(supabase, table, applyFilter) {
   return rows;
 }
 
+async function fetchAllOptional(supabase, table, applyFilter) {
+  try {
+    return await fetchAll(supabase, table, applyFilter);
+  } catch (err) {
+    const code = err?.code ?? err?.cause?.code;
+    const message = String(err?.message ?? err);
+    if (
+      code === "42P01" ||
+      code === "PGRST205" ||
+      /schema cache|does not exist|Could not find the table/i.test(message)
+    ) {
+      console.warn(`Skipping missing table: ${table}`);
+      return [];
+    }
+    throw err;
+  }
+}
+
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -93,7 +111,13 @@ async function main() {
     }
   }
 
-  const healthLogs = await fetchAll(supabase, "health_logs", (q) =>
+  const healthLogs = await fetchAllOptional(supabase, "health_logs", (q) =>
+    userId ? q.eq("user_id", userId) : q
+  );
+  const profiles = await fetchAllOptional(supabase, "user_profiles", (q) =>
+    userId ? q.eq("user_id", userId) : q
+  );
+  const books = await fetchAllOptional(supabase, "books", (q) =>
     userId ? q.eq("user_id", userId) : q
   );
 
@@ -105,6 +129,8 @@ async function main() {
       session_exercises: exercises,
       workout_logs: logs,
       health_logs: healthLogs,
+      user_profiles: profiles,
+      books,
     },
   };
 
@@ -115,7 +141,7 @@ async function main() {
 
   console.log(`Backup written: ${outPath}`);
   console.log(
-    `  workout_sessions: ${sessions.length}, session_exercises: ${exercises.length}, workout_logs: ${logs.length}, health_logs: ${healthLogs.length}`
+    `  workout_sessions: ${sessions.length}, session_exercises: ${exercises.length}, workout_logs: ${logs.length}, health_logs: ${healthLogs.length}, user_profiles: ${profiles.length}, books: ${books.length}`
   );
 }
 

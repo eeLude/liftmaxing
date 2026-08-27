@@ -1,36 +1,31 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { ChevronRight } from "lucide-react";
+import { HubMonthActivity } from "@/components/HubMonthActivity";
 import { MobileLayout } from "@/components/MobileLayout";
-import { MuscleGroupCards } from "@/components/MuscleGroupCards";
-import { WorkoutContributionGraph } from "@/components/WorkoutContributionGraph";
-import { WorkoutCalendar } from "@/components/WorkoutCalendar";
 import {
-  ChartSkeleton,
   LoadingSpinner,
   QueryErrorBanner,
 } from "@/components/LoadingStates";
-import { BodyWeightChart } from "@/components/charts/BodyWeightChart";
-import { ProgressiveOverloadChart } from "@/components/charts/ProgressiveOverloadChart";
-import { HealthTrendChart } from "@/components/charts/HealthTrendChart";
-import { MuscleVolumeChart } from "@/components/charts/MuscleVolumeChart";
-import { WeeklyTrainingVolumeChart } from "@/components/charts/WeeklyTrainingVolumeChart";
-import type { WorkoutDay } from "@/lib/queries";
+import { HubWeightChart } from "@/components/charts/HubWeightChart";
+import { formatBookYearLine } from "@/lib/books";
 import {
+  getBookYearStats,
   getHealthLogs,
-  getMovementsWithHistory,
-  getMuscleGroupProgress,
-  getUserProfile,
-  getWeeklyMuscleVolume,
-  getWeeklyTrainingVolume,
+  getWorkoutDaysInRange,
 } from "@/lib/queries";
+import { toDateString } from "@/lib/utils";
 
-export default function DashboardPage() {
-  const router = useRouter();
-  const movementsQuery = useQuery({
-    queryKey: ["movements-with-history"],
-    queryFn: getMovementsWithHistory,
+export default function HubPage() {
+  const now = new Date();
+  const today = toDateString(now);
+  const yearStart = `${now.getFullYear()}-01-01`;
+
+  const workoutsQuery = useQuery({
+    queryKey: ["workout-days-range", yearStart, today],
+    queryFn: () => getWorkoutDaysInRange(yearStart, today),
   });
 
   const healthQuery = useQuery({
@@ -38,37 +33,14 @@ export default function DashboardPage() {
     queryFn: () => getHealthLogs(120),
   });
 
-  const volumeQuery = useQuery({
-    queryKey: ["weekly-volume"],
-    queryFn: getWeeklyMuscleVolume,
+  const booksQuery = useQuery({
+    queryKey: ["book-year-stats"],
+    queryFn: getBookYearStats,
   });
 
-  const trainingVolumeQuery = useQuery({
-    queryKey: ["weekly-training-volume"],
-    queryFn: () => getWeeklyTrainingVolume(12),
-  });
-
-  const muscleGroupQuery = useQuery({
-    queryKey: ["muscle-group-progress"],
-    queryFn: getMuscleGroupProgress,
-  });
-
-  const profileQuery = useQuery({
-    queryKey: ["user-profile"],
-    queryFn: getUserProfile,
-  });
-
-  const dashboardQueries = [
-    movementsQuery,
-    healthQuery,
-    volumeQuery,
-    trainingVolumeQuery,
-    muscleGroupQuery,
-    profileQuery,
-  ];
-
-  const isInitialLoading = dashboardQueries.some((q) => q.isLoading);
-  const failedQueries = dashboardQueries.filter((q) => q.isError);
+  const hubQueries = [workoutsQuery, healthQuery, booksQuery];
+  const isInitialLoading = hubQueries.some((q) => q.isLoading);
+  const failedQueries = hubQueries.filter((q) => q.isError);
 
   const retryAll = () => {
     for (const q of failedQueries) {
@@ -76,26 +48,22 @@ export default function DashboardPage() {
     }
   };
 
-  const hasCalories = (healthQuery.data ?? []).some((l) => l.calories != null);
+  const yearDays = workoutsQuery.data ?? [];
+  const sessionsThisYear = yearDays.filter((d) => d.isComplete).length;
 
-  const handleDayAction = (date: string, workout: WorkoutDay | null) => {
-    if (workout) {
-      router.push(`/workout/${workout.splitId}?date=${date}`);
-    } else {
-      router.push(`/workout?date=${date}`);
-    }
-  };
+  const bookStats = booksQuery.data;
+  const reading = bookStats?.reading ?? [];
 
   return (
     <MobileLayout>
       <header className="mb-6">
         <h1 className="text-2xl font-bold text-zinc-100">Liftmaxxing</h1>
-        <p className="text-sm text-zinc-400">Track strength, volume & bodyweight</p>
+        <p className="text-sm text-zinc-400">Gym, health & reading</p>
       </header>
 
       {failedQueries.length > 0 && (
         <QueryErrorBanner
-          message={`Could not load ${failedQueries.length} dashboard section${failedQueries.length > 1 ? "s" : ""}.`}
+          message={`Could not load ${failedQueries.length} hub section${failedQueries.length > 1 ? "s" : ""}.`}
           onRetry={retryAll}
         />
       )}
@@ -103,99 +71,85 @@ export default function DashboardPage() {
       {isInitialLoading && (
         <div className="mb-4 flex items-center gap-2 text-sm text-zinc-500">
           <LoadingSpinner className="h-4 w-4" />
-          Loading dashboard…
+          Loading…
         </div>
       )}
 
-      <section className="mb-6 rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-400">
-          Training Activity
+      <section className="mb-4 rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
+          Gym
         </h2>
-        <WorkoutContributionGraph />
-      </section>
-
-      <section className="mb-6 rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-        <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-zinc-400">
-          Workout Calendar
-        </h2>
-        <p className="mb-3 text-xs text-zinc-500">
-          Tap a day to log or edit that workout
+        <p className="mt-2 text-3xl font-semibold tracking-tight text-zinc-100">
+          {sessionsThisYear}
         </p>
-        <WorkoutCalendar onDayAction={handleDayAction} />
-      </section>
-
-      <section className="mb-6 rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-400">
-          Body Weight
-        </h2>
-        {healthQuery.isLoading ? (
-          <ChartSkeleton />
-        ) : (
-          <BodyWeightChart
-            logs={healthQuery.data ?? []}
-            goalType={profileQuery.data?.goal_type ?? null}
-          />
-        )}
-      </section>
-
-      <section className="mb-6 rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-400">
-          Strength Progress
-        </h2>
-        {movementsQuery.isLoading ? (
-          <ChartSkeleton />
-        ) : (
-          <ProgressiveOverloadChart movements={movementsQuery.data ?? []} />
-        )}
-      </section>
-
-      <section className="mb-6 rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-400">
-          Muscle Group Progress
-        </h2>
-        <MuscleGroupCards
-          data={muscleGroupQuery.data}
-          isLoading={muscleGroupQuery.isLoading}
-        />
-      </section>
-
-      <section className="mb-6 rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-        <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-zinc-400">
-          Weekly Training Sets
-        </h2>
-        <p className="mb-3 text-xs text-zinc-500">
-          Lifting sets per Monday–Sunday week
+        <p className="text-sm text-zinc-500">
+          session{sessionsThisYear === 1 ? "" : "s"} this year
         </p>
-        {trainingVolumeQuery.isLoading ? (
-          <ChartSkeleton />
-        ) : (
-          <WeeklyTrainingVolumeChart data={trainingVolumeQuery.data ?? []} />
-        )}
+
+        <div className="mt-5">
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+            Weight
+          </h3>
+          <HubWeightChart logs={healthQuery.data ?? []} />
+        </div>
+
+        <div className="mt-5">
+          <HubMonthActivity days={yearDays} />
+        </div>
+
+        <div className="mt-5 flex gap-2">
+          <Link
+            href="/gym"
+            className="inline-flex flex-1 items-center justify-center gap-1 rounded-xl border border-zinc-700 py-2.5 text-sm font-medium text-zinc-200 hover:border-zinc-500"
+          >
+            Gym stats
+            <ChevronRight className="h-4 w-4" />
+          </Link>
+          <Link
+            href="/workout"
+            className="inline-flex flex-1 items-center justify-center rounded-xl bg-brand py-2.5 text-sm font-semibold text-white"
+          >
+            Log workout
+          </Link>
+        </div>
       </section>
 
-      <section className="mb-6 rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-        <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-zinc-400">
-          This Week&apos;s Sets by Muscle
+      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
+          Books
         </h2>
-        {volumeQuery.isLoading ? (
-          <ChartSkeleton />
+        {bookStats ? (
+          <p className="mt-2 text-lg font-semibold text-zinc-100">
+            {formatBookYearLine(bookStats)}
+            <span className="block text-sm font-normal text-zinc-500">
+              in {bookStats.year}
+            </span>
+          </p>
         ) : (
-          <MuscleVolumeChart data={volumeQuery.data ?? []} />
+          <p className="mt-2 text-sm text-zinc-500">No reading data yet</p>
         )}
+        {reading.length > 0 ? (
+          <ul className="mt-3 space-y-1.5">
+            {reading.slice(0, 3).map((book) => (
+              <li key={book.id} className="text-sm text-zinc-300">
+                {book.title}
+                {book.author ? (
+                  <span className="text-zinc-500"> · {book.author}</span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-2 text-sm text-zinc-500">Nothing in progress</p>
+        )}
+        <Link
+          href="/books"
+          className="mt-4 inline-flex w-full items-center justify-center gap-1 rounded-xl border border-zinc-700 py-2.5 text-sm font-medium text-zinc-200 hover:border-zinc-500"
+        >
+          Open reading log
+          <ChevronRight className="h-4 w-4" />
+        </Link>
       </section>
-
-      {hasCalories && (
-        <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-400">
-            Health & Calories
-          </h2>
-          {healthQuery.isLoading ? (
-            <ChartSkeleton />
-          ) : (
-            <HealthTrendChart logs={healthQuery.data ?? []} />
-          )}
-        </section>
-      )}
     </MobileLayout>
   );
 }
