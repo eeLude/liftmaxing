@@ -16,9 +16,10 @@ I wanted a simple way to log gym stats (sets, weight, splits) and track progress
 - Autosave sets while typing; resume in-progress sessions
 - Reorder exercises (saved for your next session of that split)
 - Track daily weight & calories
-- Hub home: this week's gym + reading snapshot
+- Hub home: gym, reading, and mood snapshot
 - Gym dashboard: activity graph, calendar, weight & calories, progressive overload, weekly sets
 - Reading log: books in progress, finished this year, pages
+- Mood log: daily 1–5 check-in, month calendar, notes
 - Auth + per-user data (Supabase RLS)
 
 ## Tech stack
@@ -61,11 +62,12 @@ Optional: `supabase/seed-demo.sql` for fake sample data.
 
 | Route | Purpose |
 |-------|---------|
-| `/` | Hub (gym + books snapshot) |
+| `/` | Hub (gym, books, mood) |
 | `/gym` | Gym stats, weight & calories |
 | `/workout` | Pick split |
 | `/workout/[splitId]` | Log workout |
 | `/books` | Reading log |
+| `/mood` | Mood log |
 | `/login` | Auth |
 
 MIT — see [LICENSE](LICENSE).

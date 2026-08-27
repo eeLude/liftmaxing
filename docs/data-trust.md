@@ -79,7 +79,7 @@ npm run backup
 This writes `backups/liftmaxxing-YYYY-MM-DD.json` with:
 
 - `workout_sessions`, `session_exercises`, `workout_logs`, `health_logs`
-- `user_profiles` (goal) and `books` when those tables exist
+- `user_profiles` (goal), `books`, and `mood_logs` when those tables exist
 
 The `backups/` folder is gitignored. Open the JSON and confirm recent dates and sets look right.
 
@@ -127,5 +127,6 @@ If you add features that change the schema (e.g. half reps), run the matching fi
 - [`migrate-decimal-reps.sql`](../supabase/migrate-decimal-reps.sql) — decimal reps (8.5)
 - [`migrate-user-goals.sql`](../supabase/migrate-user-goals.sql) — bulk/cut/maintain goal
 - [`migrate-books.sql`](../supabase/migrate-books.sql) — reading log
+- [`migrate-mood.sql`](../supabase/migrate-mood.sql) — daily mood log
 
 Fresh installs from [`reset.sql`](../supabase/reset.sql) already include the latest schema.

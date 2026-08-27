@@ -120,6 +120,9 @@ async function main() {
   const books = await fetchAllOptional(supabase, "books", (q) =>
     userId ? q.eq("user_id", userId) : q
   );
+  const moodLogs = await fetchAllOptional(supabase, "mood_logs", (q) =>
+    userId ? q.eq("user_id", userId) : q
+  );
 
   const payload = {
     exportedAt: new Date().toISOString(),
@@ -131,6 +134,7 @@ async function main() {
       health_logs: healthLogs,
       user_profiles: profiles,
       books,
+      mood_logs: moodLogs,
     },
   };
 
@@ -141,7 +145,7 @@ async function main() {
 
   console.log(`Backup written: ${outPath}`);
   console.log(
-    `  workout_sessions: ${sessions.length}, session_exercises: ${exercises.length}, workout_logs: ${logs.length}, health_logs: ${healthLogs.length}, user_profiles: ${profiles.length}, books: ${books.length}`
+    `  workout_sessions: ${sessions.length}, session_exercises: ${exercises.length}, workout_logs: ${logs.length}, health_logs: ${healthLogs.length}, user_profiles: ${profiles.length}, books: ${books.length}, mood_logs: ${moodLogs.length}`
   );
 }
 

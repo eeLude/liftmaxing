@@ -42,6 +42,7 @@ drop policy if exists "users_own_workout_logs" on workout_logs;
 drop policy if exists "users_own_health_logs" on health_logs;
 drop policy if exists "users_own_profiles" on user_profiles;
 drop policy if exists "users_own_books" on books;
+drop policy if exists "users_own_mood_logs" on mood_logs;
 
 create policy "auth_read_splits" on workout_splits
   for select to authenticated using (true);
@@ -107,6 +108,11 @@ create policy "users_own_profiles" on user_profiles
   with check (auth.uid() = user_id);
 
 create policy "users_own_books" on books
+  for all to authenticated
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+create policy "users_own_mood_logs" on mood_logs
   for all to authenticated
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);

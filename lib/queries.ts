@@ -4,6 +4,7 @@ import type {
   Book,
   BookStatus,
   HealthLog,
+  MoodLog,
   Movement,
   PreviousExerciseData,
   SplitExercise,
@@ -1203,5 +1204,53 @@ export async function upsertBook(input: BookInput): Promise<Book> {
 
 export async function deleteBook(id: string): Promise<void> {
   const { error } = await supabase.from("books").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function getMoodLogs(days = 120): Promise<MoodLog[]> {
+  const since = new Date();
+  since.setDate(since.getDate() - days);
+
+  const { data, error } = await supabase
+    .from("mood_logs")
+    .select("*")
+    .gte("date", toDateString(since))
+    .order("date", { ascending: false });
+
+  if (error) {
+    if (isMissingRelationError(error)) return [];
+    throw error;
+  }
+  return data ?? [];
+}
+
+export async function upsertMoodLog(
+  date: string,
+  score: number,
+  note: string | null
+): Promise<MoodLog> {
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+  if (authError) throw authError;
+  if (!user) throw new Error("Not authenticated");
+
+  const trimmed = note?.trim() ? note.trim() : null;
+
+  const { data, error } = await supabase
+    .from("mood_logs")
+    .upsert(
+      { date, score, note: trimmed, user_id: user.id },
+      { onConflict: "user_id,date" }
+    )
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteMoodLog(date: string): Promise<void> {
+  const { error } = await supabase.from("mood_logs").delete().eq("date", date);
   if (error) throw error;
 }

@@ -82,6 +82,15 @@ export type Book = {
   created_at: string;
 };
 
+export type MoodLog = {
+  id: string;
+  user_id: string;
+  date: string;
+  score: number;
+  note: string | null;
+  created_at: string;
+};
+
 type Relationship = {
   foreignKeyName: string;
   columns: string[];
@@ -172,6 +181,7 @@ export type Database = {
       >;
       health_logs: DbTable<HealthLog>;
       books: DbTable<Book>;
+      mood_logs: DbTable<MoodLog>;
       user_profiles: {
         Row: UserProfile;
         Insert: {
