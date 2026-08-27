@@ -121,8 +121,34 @@ export function isCardioMuscle(muscle: string): boolean {
 /** Run logs store duration in reps and distance (km) in weight_kg. */
 export function formatCardioSetLine(distanceKm: number, durationMin: number): string {
   const parts = [`${durationMin} min`];
-  if (distanceKm > 0) parts.push(`${distanceKm} km`);
+  if (distanceKm > 0) {
+    parts.push(`${formatLocaleNumber(distanceKm, 2)} km`);
+  }
   return parts.join(" · ");
+}
+
+/** Pace as m:ss per km, e.g. 5.5 → "5:30". */
+export function formatPace(minPerKm: number): string {
+  const totalSec = Math.round(minPerKm * 60);
+  const min = Math.floor(totalSec / 60);
+  const sec = totalSec % 60;
+  return `${min}:${String(sec).padStart(2, "0")}`;
+}
+
+/** Latest vs previous pace. Negative seconds = faster. */
+export function formatPaceDelta(
+  latestMinPerKm: number,
+  previousMinPerKm: number
+): { label: string; direction: "up" | "down" | "neutral" } {
+  const deltaSec = Math.round((latestMinPerKm - previousMinPerKm) * 60);
+  if (deltaSec === 0) {
+    return { label: "0 s/km", direction: "neutral" };
+  }
+  const sign = deltaSec > 0 ? "+" : "−";
+  return {
+    label: `${sign}${Math.abs(deltaSec)} s/km`,
+    direction: deltaSec < 0 ? "up" : "down",
+  };
 }
 
 export function formatPreviousSets(

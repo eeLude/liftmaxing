@@ -10,7 +10,8 @@ import {
   QueryErrorBanner,
 } from "@/components/LoadingStates";
 import { HubWeightChart } from "@/components/charts/HubWeightChart";
-import { getHealthLogs, getWorkoutDaysInRange } from "@/lib/queries";
+import { HubRunChart } from "@/components/charts/HubRunChart";
+import { getHealthLogs, getRunProgress, getWorkoutDaysInRange } from "@/lib/queries";
 import { toDateString } from "@/lib/utils";
 
 export function HubGymCard() {
@@ -28,11 +29,17 @@ export function HubGymCard() {
     queryFn: () => getHealthLogs(120),
   });
 
+  const runQuery = useQuery({
+    queryKey: ["run-progress"],
+    queryFn: getRunProgress,
+  });
+
   const yearDays = workoutsQuery.data ?? [];
   const sessionsThisYear = yearDays.filter((d) => d.isComplete).length;
   const isLoading = workoutsQuery.isLoading || healthQuery.isLoading;
   const isError = workoutsQuery.isError || healthQuery.isError;
   const hasWeight = (healthQuery.data ?? []).some((l) => l.weight_kg != null);
+  const runs = runQuery.data ?? [];
 
   return (
     <HubCard
@@ -61,6 +68,7 @@ export function HubGymCard() {
           onRetry={() => {
             void workoutsQuery.refetch();
             void healthQuery.refetch();
+            void runQuery.refetch();
           }}
         />
       )}
@@ -86,6 +94,14 @@ export function HubGymCard() {
             Weight
           </h3>
           <HubWeightChart logs={healthQuery.data ?? []} />
+        </div>
+      )}
+      {runs.length > 0 && (
+        <div className="mt-5">
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+            Run
+          </h3>
+          <HubRunChart runs={runs} />
         </div>
       )}
       {!workoutsQuery.isLoading && (

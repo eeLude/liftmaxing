@@ -136,11 +136,27 @@ export function WorkoutCalendar({
               } ${isToday ? "font-bold text-brand" : "text-zinc-300"}`}
             >
               {day}
-              {workout?.isComplete && (
-                <span className="absolute bottom-1 h-1.5 w-1.5 rounded-full bg-brand" />
-              )}
-              {workout && !workout.isComplete && (
-                <span className="absolute bottom-1 h-1.5 w-1.5 rounded-full bg-brand/50 ring-1 ring-brand/40" />
+              {workout && (
+                <span className="absolute bottom-1 flex items-center gap-0.5">
+                  {workout.hasLift && (
+                    <span
+                      className={`h-1.5 w-1.5 rounded-full ${
+                        workout.isComplete
+                          ? "bg-brand"
+                          : "bg-brand/50 ring-1 ring-brand/40"
+                      }`}
+                    />
+                  )}
+                  {workout.hasRun && (
+                    <span
+                      className={`h-1.5 w-1.5 rounded-full ${
+                        workout.isComplete
+                          ? "bg-amber-500"
+                          : "bg-amber-500/50 ring-1 ring-amber-500/40"
+                      }`}
+                    />
+                  )}
+                </span>
               )}
             </button>
           );

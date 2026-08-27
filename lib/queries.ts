@@ -34,6 +34,7 @@ import {
   VOLUME_MUSCLES,
   type DashboardMuscleGroup,
 } from "@/lib/muscleGroups";
+import { isRunSplitName } from "@/lib/activity";
 
 export async function getSplits(): Promise<WorkoutSplit[]> {
   const { data, error } = await supabase
@@ -835,6 +836,7 @@ export async function invalidateWorkoutDashboardQueries(
     queryClient.invalidateQueries({ queryKey: ["weekly-volume"] }),
     queryClient.invalidateQueries({ queryKey: ["weekly-training-volume"] }),
     queryClient.invalidateQueries({ queryKey: ["muscle-group-progress"] }),
+    queryClient.invalidateQueries({ queryKey: ["run-progress"] }),
   ]);
 }
 
@@ -845,6 +847,69 @@ export async function abandonInProgressSession(
   const session = await getInProgressSession(splitId, date);
   if (!session) return;
   await completeWorkoutSession(session.id);
+}
+
+export type RunProgressPoint = {
+  date: string;
+  dateLabel: string;
+  distanceKm: number;
+  durationMin: number;
+  paceMinPerKm: number | null;
+  movementName: string;
+};
+
+export async function getRunProgress(): Promise<RunProgressPoint[]> {
+  const { data, error } = await supabase
+    .from("session_exercises")
+    .select(
+      "movements(name, target_muscle), workout_sessions!inner(date, completed_at), workout_logs(weight_kg, reps)"
+    )
+    .not("workout_sessions.completed_at", "is", null);
+
+  if (error) throw error;
+
+  const byDate = new Map<string, RunProgressPoint>();
+
+  for (const row of data ?? []) {
+    const movement = row.movements as {
+      name: string;
+      target_muscle: string;
+    } | null;
+    if (!movement || !isCardioMuscle(movement.target_muscle)) continue;
+
+    const session = row.workout_sessions as {
+      date: string;
+      completed_at: string | null;
+    };
+    if (!session.completed_at) continue;
+
+    const logs = row.workout_logs as
+      | { weight_kg: number; reps: number }[]
+      | null;
+    const log = logs?.[0];
+    if (!log || log.reps <= 0) continue;
+
+    const distanceKm = Number(log.weight_kg) || 0;
+    const durationMin = log.reps;
+    const paceMinPerKm = distanceKm > 0 ? durationMin / distanceKm : null;
+    const next: RunProgressPoint = {
+      date: session.date,
+      dateLabel: formatFiDate(session.date),
+      distanceKm,
+      durationMin,
+      paceMinPerKm,
+      movementName: movement.name,
+    };
+
+    const existing = byDate.get(session.date);
+    if (!existing || distanceKm > existing.distanceKm) {
+      byDate.set(session.date, next);
+    }
+  }
+
+  return Array.from(byDate.values()).sort((a, b) =>
+    a.date.localeCompare(b.date)
+  );
 }
 
 export type MovementProgressPoint = {
@@ -977,6 +1042,8 @@ export type WorkoutDay = {
   splitId: string;
   splitName: string;
   isComplete: boolean;
+  hasRun: boolean;
+  hasLift: boolean;
 };
 
 function mapWorkoutSessionRows(
@@ -990,14 +1057,23 @@ function mapWorkoutSessionRows(
 ): WorkoutDay[] {
   const byDate = new Map<string, WorkoutDay>();
   for (const row of rows) {
-    if (byDate.has(row.date)) continue;
-    byDate.set(row.date, {
-      date: row.date,
-      sessionId: row.id,
-      splitId: row.split_id,
-      splitName: row.workout_splits.name,
-      isComplete: row.completed_at != null,
-    });
+    const isRun = isRunSplitName(row.workout_splits.name);
+    const existing = byDate.get(row.date);
+    if (!existing) {
+      byDate.set(row.date, {
+        date: row.date,
+        sessionId: row.id,
+        splitId: row.split_id,
+        splitName: row.workout_splits.name,
+        isComplete: row.completed_at != null,
+        hasRun: isRun,
+        hasLift: !isRun,
+      });
+      continue;
+    }
+    if (isRun) existing.hasRun = true;
+    else existing.hasLift = true;
+    if (row.completed_at != null) existing.isComplete = true;
   }
   return Array.from(byDate.values());
 }

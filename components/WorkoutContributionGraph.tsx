@@ -2,11 +2,17 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef } from "react";
-import { getWorkoutDaysInRange } from "@/lib/queries";
+import { getWorkoutDaysInRange, type WorkoutDay } from "@/lib/queries";
+import {
+  ACTIVITY_FILL,
+  activityDayLabel,
+  workoutActivityKind,
+} from "@/lib/activity";
 import {
   ChartSkeleton,
   QueryErrorBanner,
 } from "@/components/LoadingStates";
+import { ActivityLegend } from "@/components/ActivityLegend";
 import {
   CONTRIBUTION_DAY_LABEL_ROWS,
   CONTRIBUTION_DAY_LABELS,
@@ -25,10 +31,6 @@ const RADIUS = 2;
 const LABEL_W = 27;
 const MONTH_H = 17;
 
-const EMPTY_FILL = "#27272a"; // zinc-800 — matches app surface
-const BRAND_FILL = "#004cff";
-const IN_PROGRESS_FILL = "#004cff80";
-
 export function WorkoutContributionGraph() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const { start, end } = getContributionDateRange(WEEK_COUNT);
@@ -40,10 +42,10 @@ export function WorkoutContributionGraph() {
     queryFn: () => getWorkoutDaysInRange(start, end),
   });
 
-  const dayStatus = useMemo(() => {
-    const map = new Map<string, "complete" | "in-progress">();
+  const dayByDate = useMemo(() => {
+    const map = new Map<string, WorkoutDay>();
     for (const day of workoutDays ?? []) {
-      map.set(day.date, day.isComplete ? "complete" : "in-progress");
+      map.set(day.date, day);
     }
     return map;
   }, [workoutDays]);
@@ -70,78 +72,102 @@ export function WorkoutContributionGraph() {
   }
 
   return (
-    <div ref={scrollRef} className="overflow-x-auto pb-1">
-      <svg
-        width={width}
-        height={height}
-        role="img"
-        aria-label="Last year of training activity"
-        className="block"
-      >
-        {monthLabels.map((label, weekIndex) =>
-          label ? (
+    <div>
+      <div ref={scrollRef} className="overflow-x-auto pb-1">
+        <svg
+          width={width}
+          height={height}
+          role="img"
+          aria-label="Last year of training activity"
+          className="block"
+        >
+          <defs>
+            <linearGradient id="activity-both" x1="0" x2="1" y1="0" y2="0">
+              <stop offset="50%" stopColor={ACTIVITY_FILL.lift} />
+              <stop offset="50%" stopColor={ACTIVITY_FILL.run} />
+            </linearGradient>
+            <linearGradient
+              id="activity-both-progress"
+              x1="0"
+              x2="1"
+              y1="0"
+              y2="0"
+            >
+              <stop offset="50%" stopColor={ACTIVITY_FILL.liftProgress} />
+              <stop offset="50%" stopColor={ACTIVITY_FILL.runProgress} />
+            </linearGradient>
+          </defs>
+          {monthLabels.map((label, weekIndex) =>
+            label ? (
+              <text
+                key={`month-${weekIndex}`}
+                x={LABEL_W + weekIndex * BLOCK}
+                y={12}
+                className="fill-zinc-500 text-[10px]"
+                dominantBaseline="auto"
+              >
+                {label}
+              </text>
+            ) : null
+          )}
+
+          {CONTRIBUTION_DAY_LABELS.map((label, index) => (
             <text
-              key={`month-${weekIndex}`}
-              x={LABEL_W + weekIndex * BLOCK}
-              y={12}
+              key={label}
+              x={0}
+              y={MONTH_H + CONTRIBUTION_DAY_LABEL_ROWS[index] * BLOCK + CELL - 1}
               className="fill-zinc-500 text-[10px]"
               dominantBaseline="auto"
             >
               {label}
             </text>
-          ) : null
-        )}
+          ))}
 
-        {CONTRIBUTION_DAY_LABELS.map((label, index) => (
-          <text
-            key={label}
-            x={0}
-            y={MONTH_H + CONTRIBUTION_DAY_LABEL_ROWS[index] * BLOCK + CELL - 1}
-            className="fill-zinc-500 text-[10px]"
-            dominantBaseline="auto"
-          >
-            {label}
-          </text>
-        ))}
+          {weeks.map((week, weekIndex) =>
+            week.map((iso, dayIndex) => {
+              const x = LABEL_W + weekIndex * BLOCK;
+              const y = MONTH_H + dayIndex * BLOCK;
+              const day = iso != null ? dayByDate.get(iso) : undefined;
+              const fill = cellFill(day);
 
-        {weeks.map((week, weekIndex) =>
-          week.map((iso, dayIndex) => {
-            const x = LABEL_W + weekIndex * BLOCK;
-            const y = MONTH_H + dayIndex * BLOCK;
-            const status = iso != null ? dayStatus.get(iso) : undefined;
-            const fill =
-              status === "complete"
-                ? BRAND_FILL
-                : status === "in-progress"
-                  ? IN_PROGRESS_FILL
-                  : EMPTY_FILL;
-
-            return (
-              <rect
-                key={`${weekIndex}-${dayIndex}`}
-                x={x}
-                y={y}
-                width={CELL}
-                height={CELL}
-                rx={RADIUS}
-                ry={RADIUS}
-                fill={fill}
-              >
-                {iso && (
-                  <title>
-                    {formatFiDate(iso)}
-                    {status === "complete"
-                      ? " — workout complete"
-                      : status === "in-progress"
-                        ? " — in progress"
-                        : ""}
-                  </title>
-                )}
-              </rect>
-            );
-          })
-        )}
-      </svg>
+              return (
+                <rect
+                  key={`${weekIndex}-${dayIndex}`}
+                  x={x}
+                  y={y}
+                  width={CELL}
+                  height={CELL}
+                  rx={RADIUS}
+                  ry={RADIUS}
+                  fill={fill}
+                >
+                  {iso && (
+                    <title>
+                      {formatFiDate(iso)}
+                      {day ? activityDayLabel(day) : ""}
+                    </title>
+                  )}
+                </rect>
+              );
+            })
+          )}
+        </svg>
+      </div>
+      <ActivityLegend />
     </div>
   );
+}
+
+function cellFill(day: WorkoutDay | undefined): string {
+  if (!day) return ACTIVITY_FILL.empty;
+  const kind = workoutActivityKind(day);
+  if (kind === "both") {
+    return day.isComplete
+      ? "url(#activity-both)"
+      : "url(#activity-both-progress)";
+  }
+  if (kind === "run") {
+    return day.isComplete ? ACTIVITY_FILL.run : ACTIVITY_FILL.runProgress;
+  }
+  return day.isComplete ? ACTIVITY_FILL.lift : ACTIVITY_FILL.liftProgress;
 }

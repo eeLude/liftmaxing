@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
+import { ActivityLegend } from "@/components/ActivityLegend";
+import { activityCellClass, activityDayLabel } from "@/lib/activity";
 import { FI_WEEKDAYS, formatFiMonthYear, toDateString } from "@/lib/dates";
 import type { WorkoutDay } from "@/lib/queries";
 
@@ -62,14 +64,15 @@ export function HubMonthActivity({ days }: { days: WorkoutDay[] }) {
           const isToday = iso === todayIso;
 
           let fill = "bg-zinc-800";
-          if (workout?.isComplete) fill = "bg-brand";
-          else if (workout) fill = "bg-brand/40";
+          if (workout) fill = activityCellClass(workout);
           if (isFuture) fill = "bg-zinc-800/40";
 
           return (
             <div
               key={iso}
-              title={iso}
+              title={
+                workout ? `${iso}${activityDayLabel(workout)}` : iso
+              }
               className={`aspect-square rounded-md ${fill} ${
                 isToday ? "ring-1 ring-zinc-400" : ""
               }`}
@@ -77,6 +80,7 @@ export function HubMonthActivity({ days }: { days: WorkoutDay[] }) {
           );
         })}
       </div>
+      <ActivityLegend />
     </div>
   );
 }
