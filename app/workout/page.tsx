@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect } from "react";
-import { ChevronRight } from "lucide-react";
+import { ArrowLeft, ChevronRight } from "lucide-react";
 import { LoadingSpinner } from "@/components/LoadingStates";
 import { MobileLayout } from "@/components/MobileLayout";
 import { formatFiDate, isFutureDate, toDateString } from "@/lib/dates";
@@ -16,6 +16,7 @@ function WorkoutPickerContent() {
   const dateParam = searchParams.get("date");
   const date =
     dateParam && !isFutureDate(dateParam) ? dateParam : toDateString(new Date());
+  const pickSplit = searchParams.get("pick") === "1";
 
   const sessionQuery = useQuery({
     queryKey: ["workout-session-for-date", date],
@@ -28,9 +29,9 @@ function WorkoutPickerContent() {
   });
 
   useEffect(() => {
-    if (!sessionQuery.data) return;
+    if (pickSplit || !sessionQuery.data) return;
     router.replace(`/workout/${sessionQuery.data.split_id}?date=${date}`);
-  }, [sessionQuery.data, date, router]);
+  }, [pickSplit, sessionQuery.data, date, router]);
 
   if (sessionQuery.isLoading) {
     return (
@@ -48,7 +49,7 @@ function WorkoutPickerContent() {
     );
   }
 
-  if (sessionQuery.data) {
+  if (sessionQuery.data && !pickSplit) {
     return (
       <div className="flex items-center justify-center gap-2 py-8 text-zinc-500">
         <LoadingSpinner className="h-5 w-5" />
@@ -97,11 +98,20 @@ function WorkoutPickerPage() {
 
   return (
     <MobileLayout>
-      <header className="mb-6">
-        <h1 className="text-2xl font-bold text-zinc-100">Log Workout</h1>
-        <p className="text-sm text-zinc-400">
-          Choose split for {formatFiDate(date)}
-        </p>
+      <header className="mb-6 flex items-center gap-3">
+        <Link
+          href="/gym"
+          className="rounded-full p-2 hover:bg-zinc-800"
+          aria-label="Back"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </Link>
+        <div>
+          <h1 className="text-2xl font-bold text-zinc-100">Log Workout</h1>
+          <p className="text-sm text-zinc-400">
+            Choose split for {formatFiDate(date)}
+          </p>
+        </div>
       </header>
 
       <WorkoutPickerContent />

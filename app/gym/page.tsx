@@ -1,8 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/components/AuthProvider";
 import { HealthLogCard } from "@/components/HealthLogCard";
 import { MobileLayout } from "@/components/MobileLayout";
 import { MuscleGroupCards } from "@/components/MuscleGroupCards";
@@ -30,7 +30,6 @@ import {
 
 export default function GymDashboardPage() {
   const router = useRouter();
-  const { signOut } = useAuth();
   const movementsQuery = useQuery({
     queryKey: ["movements-with-history"],
     queryFn: getMovementsWithHistory,
@@ -98,13 +97,12 @@ export default function GymDashboardPage() {
             Track strength, volume & bodyweight
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => signOut()}
-          className="rounded-lg border border-zinc-700 px-3 py-1.5 text-xs text-zinc-400 hover:text-zinc-200"
+        <Link
+          href="/workout"
+          className="inline-flex items-center rounded-xl bg-brand px-3 py-2 text-sm font-semibold text-white"
         >
-          Sign out
-        </button>
+          Log workout
+        </Link>
       </header>
 
       {failedQueries.length > 0 && (

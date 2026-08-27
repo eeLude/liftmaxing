@@ -130,7 +130,7 @@ export function RunWorkoutForm({
     mutationFn: () => autosave.finishRun(),
     onSuccess: async () => {
       await invalidateWorkoutDashboardQueries(queryClient);
-      router.push("/");
+      router.push("/gym");
     },
   });
 
@@ -138,7 +138,7 @@ export function RunWorkoutForm({
     mutationFn: () => autosave.deleteRun(),
     onSuccess: async () => {
       await invalidateWorkoutDashboardQueries(queryClient);
-      router.push("/");
+      router.push("/gym");
     },
   });
 

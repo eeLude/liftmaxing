@@ -117,7 +117,7 @@ function ActiveWorkoutContent({
     mutationFn: () => workout.finishWorkout(),
     onSuccess: async () => {
       await invalidateWorkoutDashboardQueries(queryClient);
-      router.push("/");
+      router.push("/gym");
     },
   });
 
@@ -125,7 +125,7 @@ function ActiveWorkoutContent({
     mutationFn: () => workout.deleteWorkout(),
     onSuccess: async () => {
       await invalidateWorkoutDashboardQueries(queryClient);
-      router.push("/");
+      router.push("/gym");
     },
   });
 
@@ -167,7 +167,7 @@ function ActiveWorkoutContent({
     <MobileLayout hideNav>
       <header className="mb-4 flex items-center gap-3">
         <Link
-          href="/"
+          href={`/workout?date=${workoutDate}&pick=1`}
           className="rounded-full p-2 hover:bg-zinc-800"
           aria-label="Back"
         >

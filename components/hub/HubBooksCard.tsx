@@ -2,14 +2,16 @@
 
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
+import { BookOpen, ChevronRight } from "lucide-react";
+import { HubBookshelf } from "@/components/hub/HubBookshelf";
 import { HubCard } from "@/components/hub/HubCard";
 import {
   LoadingSpinner,
   QueryErrorBanner,
 } from "@/components/LoadingStates";
-import { formatBookYearLine } from "@/lib/books";
+import { STANDARD_BOOK_PAGES } from "@/lib/books";
 import { getBookYearStats } from "@/lib/queries";
+import { formatLocaleNumber } from "@/lib/utils";
 
 export function HubBooksCard() {
   const booksQuery = useQuery({
@@ -19,6 +21,8 @@ export function HubBooksCard() {
 
   const bookStats = booksQuery.data;
   const reading = bookStats?.reading ?? [];
+  const finished = bookStats?.finished ?? [];
+  const hasBooks = finished.length > 0 || reading.length > 0;
 
   return (
     <HubCard
@@ -40,38 +44,49 @@ export function HubBooksCard() {
         />
       )}
       {booksQuery.isLoading && (
-        <div className="mb-3 flex items-center gap-2 text-sm text-zinc-500">
+        <div className="flex items-center gap-2 text-sm text-zinc-500">
           <LoadingSpinner className="h-4 w-4" />
           Loading…
         </div>
       )}
-      {bookStats ? (
-        <p className="text-lg font-semibold text-zinc-100">
-          {formatBookYearLine(bookStats)}
-          <span className="block text-sm font-normal text-zinc-500">
-            in {bookStats.year}
-          </span>
-        </p>
-      ) : (
-        !booksQuery.isLoading && (
-          <p className="text-sm text-zinc-500">No reading data yet</p>
-        )
+      {bookStats && hasBooks && (
+        <>
+          <p className="text-3xl font-semibold tracking-tight text-zinc-100">
+            {bookStats.finishedCount}
+          </p>
+          <p className="text-sm text-zinc-500">
+            book{bookStats.finishedCount === 1 ? "" : "s"} this year
+          </p>
+          {bookStats.pageCount > 0 && (
+            <p className="mt-1 text-sm text-zinc-500">
+              {bookStats.pageCount} pages · ≈{" "}
+              {formatLocaleNumber(bookStats.standardBooks, 1)} of{" "}
+              {STANDARD_BOOK_PAGES}-page books
+            </p>
+          )}
+          <HubBookshelf finished={finished} reading={reading} />
+          {reading.length > 0 && (
+            <ul className="mt-3 space-y-1">
+              {reading.slice(0, 3).map((book) => (
+                <li key={book.id} className="text-sm text-zinc-300">
+                  <span className="text-zinc-500">Now · </span>
+                  {book.title}
+                  {book.author ? (
+                    <span className="text-zinc-500"> · {book.author}</span>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
       )}
-      {reading.length > 0 ? (
-        <ul className="mt-3 space-y-1.5">
-          {reading.slice(0, 3).map((book) => (
-            <li key={book.id} className="text-sm text-zinc-300">
-              {book.title}
-              {book.author ? (
-                <span className="text-zinc-500"> · {book.author}</span>
-              ) : null}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        !booksQuery.isLoading && (
-          <p className="mt-2 text-sm text-zinc-500">Nothing in progress</p>
-        )
+      {bookStats && !hasBooks && (
+        <div className="flex items-center gap-3 py-1">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zinc-800 text-brand">
+            <BookOpen className="h-5 w-5" />
+          </div>
+          <p className="text-sm text-zinc-500">No books logged yet</p>
+        </div>
       )}
     </HubCard>
   );

@@ -6,7 +6,7 @@ import { Activity, BookOpen, Home } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "Home", icon: Home },
-  { href: "/gym", label: "Workout", icon: Activity, match: ["/gym", "/workout"] },
+  { href: "/gym", label: "Gym", icon: Activity, match: ["/gym", "/workout"] },
   { href: "/books", label: "Books", icon: BookOpen },
 ];
 

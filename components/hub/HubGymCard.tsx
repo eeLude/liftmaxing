@@ -32,6 +32,7 @@ export function HubGymCard() {
   const sessionsThisYear = yearDays.filter((d) => d.isComplete).length;
   const isLoading = workoutsQuery.isLoading || healthQuery.isLoading;
   const isError = workoutsQuery.isError || healthQuery.isError;
+  const hasWeight = (healthQuery.data ?? []).some((l) => l.weight_kg != null);
 
   return (
     <HubCard
@@ -69,21 +70,29 @@ export function HubGymCard() {
           Loading…
         </div>
       )}
-      <p className="text-3xl font-semibold tracking-tight text-zinc-100">
-        {sessionsThisYear}
-      </p>
-      <p className="text-sm text-zinc-500">
-        session{sessionsThisYear === 1 ? "" : "s"} this year
-      </p>
-      <div className="mt-5">
-        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
-          Weight
-        </h3>
-        <HubWeightChart logs={healthQuery.data ?? []} />
-      </div>
-      <div className="mt-5">
-        <HubMonthActivity days={yearDays} />
-      </div>
+      {!isLoading && (
+        <>
+          <p className="text-3xl font-semibold tracking-tight text-zinc-100">
+            {sessionsThisYear}
+          </p>
+          <p className="text-sm text-zinc-500">
+            session{sessionsThisYear === 1 ? "" : "s"} this year
+          </p>
+        </>
+      )}
+      {hasWeight && (
+        <div className="mt-5">
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+            Weight
+          </h3>
+          <HubWeightChart logs={healthQuery.data ?? []} />
+        </div>
+      )}
+      {!workoutsQuery.isLoading && (
+        <div className="mt-5">
+          <HubMonthActivity days={yearDays} />
+        </div>
+      )}
     </HubCard>
   );
 }

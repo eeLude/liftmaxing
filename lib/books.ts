@@ -9,6 +9,8 @@ export type BookYearStats = {
   pageCount: number;
   standardBooks: number;
   reading: Book[];
+  /** All finished books, oldest first — used by the hub shelf. */
+  finished: Book[];
 };
 
 export function currentCalendarYear(from: Date = new Date()): number {
@@ -49,6 +51,9 @@ export function computeBookYearStats(
     finishedCount: finishedThisYear.length,
     pageCount,
     standardBooks: pagesToStandardBooks(pageCount),
+    finished: books
+      .filter((b) => b.status === "finished")
+      .sort((a, b) => (a.finished_on ?? "").localeCompare(b.finished_on ?? "")),
     reading: books
       .filter((b) => b.status === "reading")
       .sort((a, b) => (b.started_on ?? "").localeCompare(a.started_on ?? "")),
