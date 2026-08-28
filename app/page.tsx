@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/components/AuthProvider";
+import { HubMasonry } from "@/components/hub/HubMasonry";
 import { MobileLayout } from "@/components/MobileLayout";
 import { HUB_MODULES } from "@/lib/hub";
 
@@ -23,11 +24,11 @@ export default function HubPage() {
         </button>
       </header>
 
-      <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <HubMasonry>
         {HUB_MODULES.map(({ id, Card }) => (
           <Card key={id} />
         ))}
-      </div>
+      </HubMasonry>
     </MobileLayout>
   );
 }

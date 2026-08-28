@@ -14,13 +14,13 @@ export type HubModule = {
   Card: ComponentType;
 };
 
-/** Add a new domain: create HubXCard and append it here. */
+/** Add a new domain: create HubXCard and append it here. HubMasonry packs by height. */
 export const HUB_MODULES: HubModule[] = [
   { id: "weather", Card: HubWeatherCard },
   { id: "electricity", Card: HubElectricityCard },
-  { id: "portfolio", Card: HubPortfolioCard },
-  { id: "gym", Card: HubGymCard },
-  { id: "books", Card: HubBooksCard },
   { id: "mood", Card: HubMoodCard },
+  { id: "gym", Card: HubGymCard },
+  { id: "portfolio", Card: HubPortfolioCard },
+  { id: "books", Card: HubBooksCard },
   { id: "spotify", Card: HubSpotifyCard },
 ];

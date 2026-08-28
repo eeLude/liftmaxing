@@ -8,46 +8,46 @@ export const MOOD_OPTIONS: {
   score: MoodScore;
   label: string;
   fill: string;
-  selected: string;
+  hover: string;
 }[] = [
   {
     score: 1,
     label: "Awful",
-    fill: "bg-rose-950 text-rose-200",
-    selected: "ring-2 ring-rose-300",
+    fill: "bg-rose-500 text-white",
+    hover: "hover:bg-rose-500 hover:text-white",
   },
   {
     score: 2,
     label: "Low",
-    fill: "bg-orange-950 text-orange-200",
-    selected: "ring-2 ring-orange-300",
+    fill: "bg-orange-500 text-white",
+    hover: "hover:bg-orange-500 hover:text-white",
   },
   {
     score: 3,
     label: "Okay",
-    fill: "bg-zinc-700 text-zinc-200",
-    selected: "ring-2 ring-zinc-300",
+    fill: "bg-amber-400 text-zinc-950",
+    hover: "hover:bg-amber-400 hover:text-zinc-950",
   },
   {
     score: 4,
     label: "Good",
-    fill: "bg-emerald-900 text-emerald-100",
-    selected: "ring-2 ring-emerald-300",
+    fill: "bg-lime-500 text-zinc-950",
+    hover: "hover:bg-lime-500 hover:text-zinc-950",
   },
   {
     score: 5,
     label: "Great",
-    fill: "bg-brand text-white",
-    selected: "ring-2 ring-sky-200",
+    fill: "bg-emerald-400 text-zinc-950",
+    hover: "hover:bg-emerald-400 hover:text-zinc-950",
   },
 ];
 
 const FILL_BY_SCORE: Record<MoodScore, string> = {
-  1: "bg-rose-950",
-  2: "bg-orange-950",
-  3: "bg-zinc-700",
-  4: "bg-emerald-800",
-  5: "bg-brand",
+  1: "bg-rose-500",
+  2: "bg-orange-500",
+  3: "bg-amber-400",
+  4: "bg-lime-500",
+  5: "bg-emerald-400",
 };
 
 export function moodFill(score: number | null | undefined): string {

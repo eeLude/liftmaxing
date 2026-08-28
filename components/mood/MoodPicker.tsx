@@ -21,8 +21,8 @@ export function MoodPicker({
             type="button"
             disabled={disabled}
             onClick={() => onChange(option.score)}
-            className={`rounded-xl px-1 py-2.5 text-center text-[11px] font-semibold leading-tight disabled:opacity-60 ${option.fill} ${
-              selected ? option.selected : "ring-1 ring-transparent"
+            className={`rounded-xl px-1 py-2.5 text-center text-[11px] font-semibold leading-tight disabled:opacity-60 bg-zinc-800 text-zinc-300 ${option.hover} ${
+              selected ? "ring-2 ring-zinc-400" : "ring-1 ring-transparent"
             }`}
           >
             {option.label}

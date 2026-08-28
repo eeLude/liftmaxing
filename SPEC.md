@@ -6,7 +6,7 @@ Personal PWA for gym, books, mood, Spotify, weather, Finnish electricity, and a 
 
 ## Stack and run
 
-- Next.js 15 App Router, React 19, Tailwind, dark UI (`brand` = `#004cff`)
+- Next.js 15 App Router, React 19, Tailwind, dark UI (`brand` = `#004cff`). Tailwind `content` includes `app/`, `components/`, and `lib/` (mood fill classes live in `lib/mood.ts`).
 - Supabase Auth + Postgres + RLS (anon key in the browser; no service role on Vercel)
 - TanStack Query, Recharts, lucide-react
 - Dev: `npm run dev` → `http://localhost:3000` (port is fixed)
@@ -29,7 +29,7 @@ Personal PWA for gym, books, mood, Spotify, weather, Finnish electricity, and a 
 
 Auth: `components/AuthProvider.tsx` redirects unknown users to `/login`. Public: `/login`, `/spotify/callback`.
 
-New hub domain: add `HubXCard`, append it in `lib/hub.ts`.
+Hub layout: `HubMasonry` on `app/page.tsx` packs cards into the shortest column. Column count is `floor(containerWidth / 20rem)`. Add a domain with `HubXCard` and append it in `lib/hub.ts` (order is only a placement seed). Current order: weather, electricity, mood, gym, portfolio, books, spotify.
 
 ## Product rules
 
@@ -64,7 +64,7 @@ New table locally: run `supabase/migrate-portfolio.sql` in the SQL editor (or re
 - **Weather:** Open-Meteo; saved location in `localStorage`.
 - **Electricity:** FI spot via `app/api/electricity/route.ts` (spot-hinta.fi).
 - **Spotify:** OAuth; tokens in `spotify_tokens`; stats via `app/api/spotify/stats`.
-- **Books / mood:** `books`, `mood_logs`.
+- **Books / mood:** `books`, `mood_logs`. Mood scores 1–5 are a heatmap (rose → orange → amber → lime → emerald) in `lib/mood.ts` for week bars and the month grid. Empty days stay `zinc-800`. Picker buttons stay gray until hover.
 
 ## Data backup
 
