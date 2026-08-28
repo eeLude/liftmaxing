@@ -30,7 +30,7 @@ export function HubElectricityCard() {
   const [nowMs, setNowMs] = useState(() => Date.now());
 
   useEffect(() => {
-    const id = window.setInterval(() => setNowMs(Date.now()), 1000);
+    const id = window.setInterval(() => setNowMs(Date.now()), 15_000);
     return () => window.clearInterval(id);
   }, []);
 

@@ -5,7 +5,10 @@ const UPSTREAM =
   "https://api.spot-hinta.fi/TodayAndDayForward?region=FI&priceResolution=15";
 
 export async function GET() {
-  const res = await fetch(UPSTREAM, { next: { revalidate: 55 } });
+  const res = await fetch(UPSTREAM, {
+    next: { revalidate: 55 },
+    signal: AbortSignal.timeout(8_000),
+  });
   if (res.status === 429) {
     return NextResponse.json(
       { error: "Spot price API rate limited. Try again in a minute." },
