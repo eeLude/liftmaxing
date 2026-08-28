@@ -2,6 +2,7 @@
 
 import type { ComponentType } from "react";
 import { HubBooksCard } from "@/components/hub/HubBooksCard";
+import { HubElectricityCard } from "@/components/hub/HubElectricityCard";
 import { HubGymCard } from "@/components/hub/HubGymCard";
 import { HubMoodCard } from "@/components/hub/HubMoodCard";
 import { HubSpotifyCard } from "@/components/hub/HubSpotifyCard";
@@ -15,6 +16,7 @@ export type HubModule = {
 /** Add a new domain: create HubXCard and append it here. */
 export const HUB_MODULES: HubModule[] = [
   { id: "weather", Card: HubWeatherCard },
+  { id: "electricity", Card: HubElectricityCard },
   { id: "gym", Card: HubGymCard },
   { id: "books", Card: HubBooksCard },
   { id: "mood", Card: HubMoodCard },
