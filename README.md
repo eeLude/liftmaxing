@@ -18,3 +18,7 @@ Live: [liftmaxing.vercel.app](https://liftmaxing.vercel.app)
 ## Stack
 
 Next.js 15, Supabase (Auth + RLS), TanStack Query, Recharts
+
+## For a new AI chat
+
+Read **[SPEC.md](SPEC.md)** first (architecture, file map, and working rules). Update that file when you add a domain.

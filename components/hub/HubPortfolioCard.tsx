@@ -6,6 +6,10 @@ import { useMemo, useState } from "react";
 import { ChevronRight, Wallet } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { HubPortfolioChart } from "@/components/charts/HubPortfolioChart";
+import {
+  HidePortfolioValuesButton,
+  useHidePortfolioValues,
+} from "@/components/HidePortfolioValuesButton";
 import { HubCard } from "@/components/hub/HubCard";
 import {
   LoadingSpinner,
@@ -18,6 +22,7 @@ import {
   filterHoldingsByAccount,
   formatEur,
   formatSignedEur,
+  HIDDEN_EUR,
   holdingsRangeChange,
   QUOTE_STALE_MS,
   quotesCoverHoldings,
@@ -32,6 +37,7 @@ export function HubPortfolioCard() {
   const { session } = useAuth();
   const accessToken = session?.access_token;
   const [account, setAccount] = useState<AccountFilter>("combined");
+  const { hidden, toggle } = useHidePortfolioValues();
 
   const holdingsQuery = useQuery({
     queryKey: ["portfolio-holdings"],
@@ -76,6 +82,9 @@ export function HubPortfolioCard() {
   return (
     <HubCard
       title="Portfolio"
+      action={
+        <HidePortfolioValuesButton hidden={hidden} onToggle={toggle} />
+      }
       footer={
         <Link
           href="/portfolio"
@@ -127,33 +136,43 @@ export function HubPortfolioCard() {
         <>
           <PortfolioFilters account={account} onAccount={setAccount} />
           <p className="mt-3 text-3xl font-semibold tracking-tight text-zinc-100">
-            {formatEur(snapshot.totalEur, 0)}
+            {hidden ? HIDDEN_EUR : formatEur(snapshot.totalEur, 0)}
           </p>
           {rangeChange && (
             <p className={`mt-1 text-sm ${rangeTone}`}>
-              {formatSignedEur(rangeChange.eur, 0)}
-              {rangeChange.pct != null && (
-                <> · {formatSignedPct(rangeChange.pct)}</>
+              {!hidden && (
+                <>
+                  {formatSignedEur(rangeChange.eur, 0)}
+                  {rangeChange.pct != null && " · "}
+                </>
               )}
+              {rangeChange.pct != null && formatSignedPct(rangeChange.pct)}
               <span className="text-zinc-500"> 1 kk · current holdings</span>
             </p>
           )}
-          <p className={`text-sm ${pnlTone}`}>
-            {formatSignedEur(snapshot.pnlEur, 0)}
-            <span className="text-zinc-500"> vs cost</span>
-          </p>
+          {!hidden && (
+            <p className={`text-sm ${pnlTone}`}>
+              {formatSignedEur(snapshot.pnlEur, 0)}
+              <span className="text-zinc-500"> vs cost</span>
+            </p>
+          )}
           <p className="mt-1 text-[10px] text-zinc-600">
             Current holdings · Yahoo
           </p>
           {snapshot.failedTickers.length > 0 && (
             <p className="mt-1 text-xs text-amber-500">
-              No price for {snapshot.failedTickers.join(", ")}
+              {hidden
+                ? "Some prices missing"
+                : `No price for ${snapshot.failedTickers.join(", ")}`}
             </p>
           )}
           {quotesQuery.isFetching && (
             <p className="mt-1 text-xs text-zinc-600">Updating…</p>
           )}
-          <HubPortfolioChart history={snapshot.history} />
+          <HubPortfolioChart
+            history={snapshot.history}
+            hideValues={hidden}
+          />
         </>
       )}
     </HubCard>

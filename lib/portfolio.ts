@@ -7,6 +7,26 @@ import type {
 
 export const QUOTE_STALE_MS = 15 * 60 * 1000;
 export const MAX_QUOTE_TICKERS = 40;
+export const HIDE_PORTFOLIO_VALUES_KEY = "liftmaxxing.hidePortfolioValues";
+export const HIDDEN_EUR = "•••• €";
+
+export function loadHidePortfolioValues(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return localStorage.getItem(HIDE_PORTFOLIO_VALUES_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function saveHidePortfolioValues(hidden: boolean): void {
+  try {
+    if (hidden) localStorage.setItem(HIDE_PORTFOLIO_VALUES_KEY, "1");
+    else localStorage.removeItem(HIDE_PORTFOLIO_VALUES_KEY);
+  } catch {
+    /* private mode / quota */
+  }
+}
 
 export const YAHOO_RANGES = ["5d", "1mo", "ytd", "1y"] as const;
 export type YahooRange = (typeof YAHOO_RANGES)[number];

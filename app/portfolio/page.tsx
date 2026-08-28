@@ -6,6 +6,10 @@ import { Plus } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { HubPortfolioChart } from "@/components/charts/HubPortfolioChart";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import {
+  HidePortfolioValuesButton,
+  useHidePortfolioValues,
+} from "@/components/HidePortfolioValuesButton";
 import { MobileLayout } from "@/components/MobileLayout";
 import { QueryErrorBanner } from "@/components/LoadingStates";
 import { PortfolioFilters } from "@/components/PortfolioFilters";
@@ -18,6 +22,7 @@ import {
   filterHoldingsByAccount,
   formatEur,
   formatSignedEur,
+  HIDDEN_EUR,
   holdingsRangeChange,
   hintFromName,
   KIND_LABEL,
@@ -113,6 +118,7 @@ export default function PortfolioPage() {
   const [detected, setDetected] = useState<TickerHint[]>([]);
   const [pasteOpen, setPasteOpen] = useState(false);
   const [account, setAccount] = useState<AccountFilter>("combined");
+  const { hidden, toggle } = useHidePortfolioValues();
 
   const holdingsQuery = useQuery({
     queryKey: ["portfolio-holdings"],
@@ -216,14 +222,17 @@ export default function PortfolioPage() {
           <h1 className="text-2xl font-bold text-zinc-100">Portfolio</h1>
           <p className="text-sm text-zinc-400">Current holdings · Yahoo</p>
         </div>
-        <button
-          type="button"
-          onClick={openNew}
-          className="inline-flex items-center gap-1 rounded-xl bg-brand px-3 py-2 text-sm font-semibold text-white"
-        >
-          <Plus className="h-4 w-4" />
-          Add
-        </button>
+        <div className="flex items-center gap-2">
+          <HidePortfolioValuesButton hidden={hidden} onToggle={toggle} />
+          <button
+            type="button"
+            onClick={openNew}
+            className="inline-flex items-center gap-1 rounded-xl bg-brand px-3 py-2 text-sm font-semibold text-white"
+          >
+            <Plus className="h-4 w-4" />
+            Add
+          </button>
+        </div>
       </header>
 
       {holdingsQuery.isError && (
@@ -245,25 +254,33 @@ export default function PortfolioPage() {
           {snapshot && scopedHoldings.length > 0 && (
             <>
               <p className="mt-3 text-3xl font-semibold tracking-tight text-zinc-100">
-                {formatEur(snapshot.totalEur, 0)}
+                {hidden ? HIDDEN_EUR : formatEur(snapshot.totalEur, 0)}
               </p>
               {rangeChange && (
                 <p className={`mt-1 text-sm ${rangeTone}`}>
-                  {formatSignedEur(rangeChange.eur, 0)}
-                  {rangeChange.pct != null && (
-                    <> · {formatSignedPct(rangeChange.pct)}</>
+                  {!hidden && (
+                    <>
+                      {formatSignedEur(rangeChange.eur, 0)}
+                      {rangeChange.pct != null && " · "}
+                    </>
                   )}
+                  {rangeChange.pct != null && formatSignedPct(rangeChange.pct)}
                   <span className="text-zinc-500"> 1 kk · current holdings</span>
                 </p>
               )}
-              <p className={`text-sm ${pnlTone}`}>
-                {formatSignedEur(snapshot.pnlEur, 0)}
-                <span className="text-zinc-500"> vs {formatEur(snapshot.costEur, 0)} cost</span>
-              </p>
+              {!hidden && (
+                <p className={`text-sm ${pnlTone}`}>
+                  {formatSignedEur(snapshot.pnlEur, 0)}
+                  <span className="text-zinc-500"> vs {formatEur(snapshot.costEur, 0)} cost</span>
+                </p>
+              )}
               {quotesQuery.isFetching && (
                 <p className="mt-1 text-xs text-zinc-600">Updating…</p>
               )}
-              <HubPortfolioChart history={snapshot.history} />
+              <HubPortfolioChart
+                history={snapshot.history}
+                hideValues={hidden}
+              />
             </>
           )}
           {scopedHoldings.length === 0 && (
@@ -545,28 +562,34 @@ export default function PortfolioPage() {
                       </p>
                     </div>
                     <p className="text-right text-sm font-medium text-zinc-100">
-                      {row.valueEur != null ? formatEur(row.valueEur, 0) : "—"}
+                      {hidden
+                        ? HIDDEN_EUR
+                        : row.valueEur != null
+                          ? formatEur(row.valueEur, 0)
+                          : "—"}
                     </p>
                   </div>
-                  <p className="mt-1 text-xs text-zinc-500">
-                    {formatLocaleNumber(row.qty, 4)} ×{" "}
-                    {row.last != null ? formatLocaleNumber(row.last, 2) : "?"}{" "}
-                    {row.quoteCurrency}
-                    {row.pnlEur != null && (
-                      <span
-                        className={
-                          row.pnlEur > 0
-                            ? "text-emerald-400"
-                            : row.pnlEur < 0
-                              ? "text-red-400"
-                              : ""
-                        }
-                      >
-                        {" "}
-                        · {formatSignedEur(row.pnlEur, 0)}
-                      </span>
-                    )}
-                  </p>
+                  {!hidden && (
+                    <p className="mt-1 text-xs text-zinc-500">
+                      {formatLocaleNumber(row.qty, 4)} ×{" "}
+                      {row.last != null ? formatLocaleNumber(row.last, 2) : "?"}{" "}
+                      {row.quoteCurrency}
+                      {row.pnlEur != null && (
+                        <span
+                          className={
+                            row.pnlEur > 0
+                              ? "text-emerald-400"
+                              : row.pnlEur < 0
+                                ? "text-red-400"
+                                : ""
+                          }
+                        >
+                          {" "}
+                          · {formatSignedEur(row.pnlEur, 0)}
+                        </span>
+                      )}
+                    </p>
+                  )}
                   {row.quoteError && (
                     <p className="mt-1 text-xs text-amber-500">{row.quoteError}</p>
                   )}

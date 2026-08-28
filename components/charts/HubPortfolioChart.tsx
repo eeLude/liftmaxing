@@ -9,7 +9,13 @@ import { formatLocaleNumber } from "@/lib/utils";
 
 const TICK = "#a1a1aa";
 
-export function HubPortfolioChart({ history }: { history: QuotePoint[] }) {
+export function HubPortfolioChart({
+  history,
+  hideValues = false,
+}: {
+  history: QuotePoint[];
+  hideValues?: boolean;
+}) {
   const chartData = useMemo(
     () =>
       history.map((point) => ({
@@ -34,9 +40,9 @@ export function HubPortfolioChart({ history }: { history: QuotePoint[] }) {
             tickLine={false}
           />
           <YAxis
-            tick={{ fontSize: 10, fill: TICK }}
+            tick={hideValues ? false : { fontSize: 10, fill: TICK }}
             domain={["auto", "auto"]}
-            width={44}
+            width={hideValues ? 8 : 44}
             axisLine={false}
             tickLine={false}
             tickFormatter={(value: number) => formatLocaleNumber(value, 0)}
@@ -53,7 +59,10 @@ export function HubPortfolioChart({ history }: { history: QuotePoint[] }) {
               const row = payload?.[0]?.payload as { dateLabel?: string } | undefined;
               return row?.dateLabel ?? "";
             }}
-            formatter={(value) => [formatEur(Number(value), 0), "Value"]}
+            formatter={(value) => [
+              hideValues ? "•••• €" : formatEur(Number(value), 0),
+              "Value",
+            ]}
           />
           <Line
             type="monotone"
