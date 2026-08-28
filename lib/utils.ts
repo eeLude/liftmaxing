@@ -18,7 +18,10 @@ export function formatLocaleNumber(
   const rounded =
     Math.round(value * 10 ** maxDecimals) / 10 ** maxDecimals;
   const fixed = rounded.toFixed(maxDecimals);
-  const trimmed = fixed.replace(/\.?0+$/, "");
+  const trimmed =
+    maxDecimals === 0
+      ? fixed
+      : fixed.replace(/0+$/, "").replace(/\.$/, "");
   return trimmed.replace(".", ",");
 }
 

@@ -39,4 +39,7 @@ next-env.d.ts
 
 # personal data — never commit
 supabase/seed-history.sql
+supabase/seed-portfolio.sql
 /backups/
+*.pdf
+debug-*.log

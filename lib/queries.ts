@@ -1,11 +1,15 @@
 import { supabase } from "@/lib/supabase";
 import type { QueryClient } from "@tanstack/react-query";
+import type { QuotesResponse, YahooRange } from "@/lib/portfolio";
 import type {
   Book,
   BookStatus,
   HealthLog,
+  HoldingAccount,
+  HoldingKind,
   MoodLog,
   Movement,
+  PortfolioHolding,
   PreviousExerciseData,
   SplitExercise,
   UserProfile,
@@ -1380,4 +1384,135 @@ export async function deleteSpotifyConnection(): Promise<void> {
     .delete()
     .eq("user_id", user.id);
   if (error) throw error;
+}
+
+function asNumber(value: unknown): number {
+  const n = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function mapHolding(row: PortfolioHolding): PortfolioHolding {
+  return {
+    ...row,
+    qty: asNumber(row.qty),
+    cost_eur: asNumber(row.cost_eur),
+  };
+}
+
+export type HoldingInput = {
+  id?: string;
+  name: string;
+  ticker: string;
+  kind: HoldingKind;
+  account: HoldingAccount;
+  qty: number;
+  cost_eur: number;
+  currency: string;
+};
+
+export async function getHoldings(): Promise<PortfolioHolding[]> {
+  const { data, error } = await supabase
+    .from("portfolio_holdings")
+    .select("*")
+    .order("created_at", { ascending: true });
+  if (error) {
+    if (isMissingRelationError(error)) {
+      throw new Error(
+        "Could not load holdings. Run supabase/migrate-portfolio.sql in the Supabase SQL Editor."
+      );
+    }
+    throw error;
+  }
+  return (data ?? []).map(mapHolding);
+}
+
+export async function upsertHolding(input: HoldingInput): Promise<PortfolioHolding> {
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+  if (authError) throw authError;
+  if (!user) throw new Error("Not authenticated");
+
+  const name = input.name.trim();
+  const ticker = input.ticker.trim().toUpperCase();
+  const currency = (input.currency.trim() || "EUR").toUpperCase();
+  if (!name) throw new Error("Name is required");
+  if (!ticker) throw new Error("Ticker is required");
+  if (!(input.qty >= 0) || !Number.isFinite(input.qty)) {
+    throw new Error("Quantity must be zero or more");
+  }
+  if (!Number.isFinite(input.cost_eur)) {
+    throw new Error("Cost must be a number");
+  }
+
+  const row = {
+    user_id: user.id,
+    name,
+    ticker,
+    kind: input.kind,
+    account: input.account,
+    qty: input.qty,
+    cost_eur: input.cost_eur,
+    currency,
+  };
+
+  if (input.id) {
+    const { data, error } = await supabase
+      .from("portfolio_holdings")
+      .update(row)
+      .eq("id", input.id)
+      .select()
+      .single();
+    if (error) {
+      throw new Error(
+        error.message.includes("portfolio_holdings")
+          ? "Could not save holding. Run supabase/migrate-portfolio.sql in Supabase."
+          : error.message
+      );
+    }
+    return mapHolding(data);
+  }
+
+  const { data, error } = await supabase
+    .from("portfolio_holdings")
+    .insert(row)
+    .select()
+    .single();
+  if (error) {
+    throw new Error(
+      error.message.includes("portfolio_holdings")
+        ? "Could not save holding. Run supabase/migrate-portfolio.sql in Supabase."
+        : error.message
+    );
+  }
+  return mapHolding(data);
+}
+
+export async function deleteHolding(id: string): Promise<void> {
+  const { error } = await supabase.from("portfolio_holdings").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function fetchPortfolioQuotes(
+  accessToken: string,
+  tickers: string[],
+  range: YahooRange = "1mo"
+): Promise<QuotesResponse> {
+  if (tickers.length === 0) {
+    return { quotes: [], fx: { EUR: { last: 1, history: [] } } };
+  }
+  const params = new URLSearchParams({
+    tickers: tickers.join(","),
+    range,
+  });
+  const res = await fetch(`/api/portfolio/quotes?${params}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    signal: AbortSignal.timeout(25_000),
+  });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(body?.error ?? "Could not load prices.");
+  }
+  return (await res.json()) as QuotesResponse;
 }

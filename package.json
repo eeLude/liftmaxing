@@ -1,7 +1,7 @@
 {
   "name": "liftmaxxing",
   "version": "0.1.0",
-  "description": "Personal gym, reading, mood, and Spotify tracker",
+  "description": "Personal gym, reading, mood, Spotify, and portfolio tracker",
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000",

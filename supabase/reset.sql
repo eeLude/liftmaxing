@@ -10,6 +10,7 @@ drop table if exists health_logs cascade;
 drop table if exists books cascade;
 drop table if exists mood_logs cascade;
 drop table if exists spotify_tokens cascade;
+drop table if exists portfolio_holdings cascade;
 drop table if exists user_profiles cascade;
 drop table if exists split_exercises cascade;
 drop table if exists exercises cascade;
@@ -136,6 +137,21 @@ create table spotify_tokens (
   updated_at timestamptz not null default now()
 );
 
+create table portfolio_holdings (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade default auth.uid(),
+  name text not null,
+  ticker text not null,
+  kind text not null check (kind in ('stock', 'fund', 'cash')),
+  account text not null check (account in ('OST', 'AOT')),
+  qty numeric(14, 6) not null check (qty >= 0),
+  cost_eur numeric(14, 2) not null default 0,
+  currency text not null default 'EUR',
+  created_at timestamptz not null default now()
+);
+
+create index portfolio_holdings_user_idx on portfolio_holdings (user_id, created_at desc);
+
 -- ---------------------------------------------------------------------------
 -- RLS (dev-friendly anon policies)
 -- ---------------------------------------------------------------------------
@@ -151,6 +167,7 @@ alter table user_profiles enable row level security;
 alter table books enable row level security;
 alter table mood_logs enable row level security;
 alter table spotify_tokens enable row level security;
+alter table portfolio_holdings enable row level security;
 
 drop policy if exists "anon_all" on workout_splits;
 drop policy if exists "anon_all" on movements;
@@ -172,6 +189,7 @@ drop policy if exists "users_own_profiles" on user_profiles;
 drop policy if exists "users_own_books" on books;
 drop policy if exists "users_own_mood_logs" on mood_logs;
 drop policy if exists "users_own_spotify_tokens" on spotify_tokens;
+drop policy if exists "users_own_portfolio_holdings" on portfolio_holdings;
 
 create policy "auth_read_splits" on workout_splits
   for select to authenticated using (true);
@@ -247,6 +265,11 @@ create policy "users_own_mood_logs" on mood_logs
   with check (auth.uid() = user_id);
 
 create policy "users_own_spotify_tokens" on spotify_tokens
+  for all to authenticated
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+create policy "users_own_portfolio_holdings" on portfolio_holdings
   for all to authenticated
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);

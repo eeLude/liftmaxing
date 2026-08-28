@@ -44,6 +44,7 @@ drop policy if exists "users_own_profiles" on user_profiles;
 drop policy if exists "users_own_books" on books;
 drop policy if exists "users_own_mood_logs" on mood_logs;
 drop policy if exists "users_own_spotify_tokens" on spotify_tokens;
+drop policy if exists "users_own_portfolio_holdings" on portfolio_holdings;
 
 create policy "auth_read_splits" on workout_splits
   for select to authenticated using (true);
@@ -119,6 +120,11 @@ create policy "users_own_mood_logs" on mood_logs
   with check (auth.uid() = user_id);
 
 create policy "users_own_spotify_tokens" on spotify_tokens
+  for all to authenticated
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+create policy "users_own_portfolio_holdings" on portfolio_holdings
   for all to authenticated
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
