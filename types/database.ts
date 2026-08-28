@@ -91,6 +91,12 @@ export type MoodLog = {
   created_at: string;
 };
 
+export type SpotifyToken = {
+  user_id: string;
+  refresh_token: string;
+  updated_at: string;
+};
+
 type Relationship = {
   foreignKeyName: string;
   columns: string[];
@@ -182,6 +188,16 @@ export type Database = {
       health_logs: DbTable<HealthLog>;
       books: DbTable<Book>;
       mood_logs: DbTable<MoodLog>;
+      spotify_tokens: {
+        Row: SpotifyToken;
+        Insert: {
+          user_id?: string;
+          refresh_token: string;
+          updated_at?: string;
+        };
+        Update: Partial<SpotifyToken>;
+        Relationships: [];
+      };
       user_profiles: {
         Row: UserProfile;
         Insert: {

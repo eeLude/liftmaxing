@@ -21,6 +21,10 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+function isPublicPath(pathname: string) {
+  return pathname === "/login" || pathname.startsWith("/spotify/callback");
+}
+
 function AuthLoadingScreen({ message }: { message: string }) {
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center gap-3 bg-zinc-950 text-zinc-400">
@@ -60,7 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (loading) return;
-    if (!session && pathname !== "/login") {
+    if (!session && !isPublicPath(pathname)) {
       router.replace("/login");
       return;
     }
@@ -85,7 +89,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return <AuthLoadingScreen message="Loading..." />;
   }
 
-  if (!session && pathname !== "/login") {
+  if (!session && !isPublicPath(pathname)) {
     return <AuthLoadingScreen message="Redirecting to login..." />;
   }
 

@@ -9,6 +9,7 @@ drop table if exists workout_sessions cascade;
 drop table if exists health_logs cascade;
 drop table if exists books cascade;
 drop table if exists mood_logs cascade;
+drop table if exists spotify_tokens cascade;
 drop table if exists user_profiles cascade;
 drop table if exists split_exercises cascade;
 drop table if exists exercises cascade;
@@ -129,6 +130,12 @@ create table mood_logs (
 
 create index mood_logs_user_date_idx on mood_logs (user_id, date desc);
 
+create table spotify_tokens (
+  user_id uuid primary key references auth.users (id) on delete cascade default auth.uid(),
+  refresh_token text not null,
+  updated_at timestamptz not null default now()
+);
+
 -- ---------------------------------------------------------------------------
 -- RLS (dev-friendly anon policies)
 -- ---------------------------------------------------------------------------
@@ -143,6 +150,7 @@ alter table health_logs enable row level security;
 alter table user_profiles enable row level security;
 alter table books enable row level security;
 alter table mood_logs enable row level security;
+alter table spotify_tokens enable row level security;
 
 drop policy if exists "anon_all" on workout_splits;
 drop policy if exists "anon_all" on movements;
@@ -163,6 +171,7 @@ drop policy if exists "users_own_health_logs" on health_logs;
 drop policy if exists "users_own_profiles" on user_profiles;
 drop policy if exists "users_own_books" on books;
 drop policy if exists "users_own_mood_logs" on mood_logs;
+drop policy if exists "users_own_spotify_tokens" on spotify_tokens;
 
 create policy "auth_read_splits" on workout_splits
   for select to authenticated using (true);
@@ -233,6 +242,11 @@ create policy "users_own_books" on books
   with check (auth.uid() = user_id);
 
 create policy "users_own_mood_logs" on mood_logs
+  for all to authenticated
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+create policy "users_own_spotify_tokens" on spotify_tokens
   for all to authenticated
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);

@@ -1,10 +1,10 @@
 {
   "name": "liftmaxxing",
   "version": "0.1.0",
-  "description": "Mobile-first workout tracking PWA with Supabase, autosave logging, and progress dashboards",
+  "description": "Personal gym, reading, mood, and Spotify tracker",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -H 127.0.0.1 -p 3000",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",

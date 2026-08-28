@@ -1330,3 +1330,54 @@ export async function deleteMoodLog(date: string): Promise<void> {
   const { error } = await supabase.from("mood_logs").delete().eq("date", date);
   if (error) throw error;
 }
+
+export async function hasSpotifyConnection(): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("spotify_tokens")
+    .select("user_id")
+    .maybeSingle();
+  if (error) {
+    if (isMissingRelationError(error)) return false;
+    throw error;
+  }
+  return data != null;
+}
+
+export async function upsertSpotifyRefreshToken(
+  refreshToken: string
+): Promise<void> {
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+  if (authError) throw authError;
+  if (!user) throw new Error("Not authenticated");
+
+  const { error } = await supabase.from("spotify_tokens").upsert({
+    user_id: user.id,
+    refresh_token: refreshToken,
+    updated_at: new Date().toISOString(),
+  });
+  if (error) {
+    throw new Error(
+      error.message.includes("spotify_tokens")
+        ? "Could not save Spotify. Run supabase/migrate-spotify.sql in Supabase."
+        : error.message
+    );
+  }
+}
+
+export async function deleteSpotifyConnection(): Promise<void> {
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+  if (authError) throw authError;
+  if (!user) throw new Error("Not authenticated");
+
+  const { error } = await supabase
+    .from("spotify_tokens")
+    .delete()
+    .eq("user_id", user.id);
+  if (error) throw error;
+}
