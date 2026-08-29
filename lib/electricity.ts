@@ -1,5 +1,9 @@
 export const SPOT_REFETCH_MS = 60_000;
 
+/** Absolute snt/kWh (VAT included). Color is not relative to today's min/max. */
+export const SPOT_CHEAP_MAX_C = 10;
+export const SPOT_DEAR_MIN_C = 20;
+
 export type SpotSlot = {
   start: string;
   priceC: number;
@@ -53,16 +57,9 @@ export function currentSlotIndex(slots: SpotSlot[], nowMs: number): number {
   return index;
 }
 
-export function priceTone(
-  priceC: number,
-  minC: number,
-  maxC: number
-): "cheap" | "mid" | "dear" {
-  if (priceC <= 0) return "cheap";
-  if (maxC <= minC) return "mid";
-  const t = (priceC - minC) / (maxC - minC);
-  if (t < 0.33) return "cheap";
-  if (t < 0.66) return "mid";
+export function priceTone(priceC: number): "cheap" | "mid" | "dear" {
+  if (priceC <= SPOT_CHEAP_MAX_C) return "cheap";
+  if (priceC < SPOT_DEAR_MIN_C) return "mid";
   return "dear";
 }
 

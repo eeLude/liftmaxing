@@ -58,7 +58,7 @@ export function HubElectricityCard() {
   const maxC = todaySlots.length
     ? Math.max(...todaySlots.map((s) => s.priceC))
     : 1;
-  const tone = current ? priceTone(current.priceC, minC, maxC) : "mid";
+  const tone = current ? priceTone(current.priceC) : "mid";
   const endsAt =
     current && index >= 0
       ? slotStartMs(current) + slotDurationMs(slots, index)
@@ -128,7 +128,7 @@ export function HubElectricityCard() {
           )}
           <div className="mt-4 flex h-10 items-end">
             {todaySlots.map((slot) => {
-              const t = priceTone(slot.priceC, minC, maxC);
+              const t = priceTone(slot.priceC);
               const px =
                 maxC <= minC
                   ? 20

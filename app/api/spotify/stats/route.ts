@@ -1,6 +1,15 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
-import { mapSpotifyStats, parseSpotifyTimeRange } from "@/lib/spotify";
+import {
+  applyNameGenreLookup,
+  ITUNES_GENRE_LOOKUP_LIMIT,
+  lookupArtistGenres,
+} from "@/lib/artist-genre";
+import {
+  applyArtistGenreLookup,
+  mapSpotifyStats,
+  parseSpotifyTimeRange,
+} from "@/lib/spotify";
 import type { Database } from "@/types/database";
 
 type TokenResponse = {
@@ -108,7 +117,7 @@ export async function GET(request: NextRequest) {
   const headers = { Authorization: `Bearer ${refreshed.accessToken}` };
   const [artistsRes, tracksRes] = await Promise.all([
     fetch(
-      `https://api.spotify.com/v1/me/top/artists?time_range=${timeRange}&limit=10`,
+      `https://api.spotify.com/v1/me/top/artists?time_range=${timeRange}&limit=50`,
       { headers }
     ),
     fetch(
@@ -133,11 +142,46 @@ export async function GET(request: NextRequest) {
   const tracksJson = (await tracksRes.json()) as Paging<{
     id: string;
     name: string;
-    artists?: { name: string }[];
+    artists?: { name: string; id?: string }[];
   }>;
+
+  let artistItems = artistsJson.items ?? [];
+  const missingIds = [
+    ...new Set(
+      artistItems
+        .filter((artist) => !(artist.genres ?? []).length)
+        .map((artist) => artist.id)
+    ),
+  ].slice(0, 50);
+
+  if (missingIds.length > 0) {
+    const lookupRes = await fetch(
+      `https://api.spotify.com/v1/artists?ids=${missingIds.join(",")}`,
+      { headers }
+    );
+    if (lookupRes.ok) {
+      const lookupJson = (await lookupRes.json()) as {
+        artists?: { id: string; genres?: string[] }[];
+      };
+      artistItems = applyArtistGenreLookup(
+        artistItems,
+        lookupJson.artists ?? []
+      );
+    }
+  }
+
+  const stillMissing = artistItems.filter(
+    (artist) => !(artist.genres ?? []).length
+  );
+  if (stillMissing.length > 0) {
+    const itunes = await lookupArtistGenres(
+      stillMissing.slice(0, ITUNES_GENRE_LOOKUP_LIMIT).map((artist) => artist.name)
+    );
+    artistItems = applyNameGenreLookup(artistItems, itunes);
+  }
 
   return NextResponse.json({
     connected: true,
-    ...mapSpotifyStats(artistsJson.items ?? [], tracksJson.items ?? []),
+    ...mapSpotifyStats(artistItems, tracksJson.items ?? []),
   });
 }

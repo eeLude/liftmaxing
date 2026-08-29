@@ -62,8 +62,8 @@ New table locally: run `supabase/migrate-portfolio.sql` in the SQL editor (or re
 ## Other hub cards
 
 - **Weather:** Open-Meteo; saved location in `localStorage`.
-- **Electricity:** FI spot via `app/api/electricity/route.ts` (spot-hinta.fi).
-- **Spotify:** OAuth; tokens in `spotify_tokens`; stats via `app/api/spotify/stats`.
+- **Electricity:** FI spot via `app/api/electricity/route.ts` (spot-hinta.fi). Bar **height** is relative to today; **color** is absolute snt/kWh (VAT in): green ≤ 10, amber < 20, red ≥ 20.
+- **Spotify:** OAuth; tokens in `spotify_tokens`; stats via `app/api/spotify/stats` (top artists/tracks). Genre is counted from up to 50 top artists. Spotify often returns empty `genres`; missing names are filled from Apple Search `primaryGenreName` (top 10). Web API has **no monthly listening minutes** (the in-app number is first-party; recently-played tops out at ~50 tracks).
 - **Books / mood:** `books`, `mood_logs`. Mood scores 1–5 are a heatmap (rose → orange → amber → lime → emerald) in `lib/mood.ts` for week bars and the month grid. Empty days stay `zinc-800`. Picker buttons stay gray until hover.
 
 ## Data backup

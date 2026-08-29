@@ -108,6 +108,19 @@ export function takePkceFromStorage(stateFromUrl: string | null): {
   return { verifier };
 }
 
+export function applyArtistGenreLookup<T extends { id: string; genres?: string[] }>(
+  artists: T[],
+  lookup: { id: string; genres?: string[] }[]
+): T[] {
+  const byId = new Map(lookup.map((row) => [row.id, row]));
+  return artists.map((artist) => {
+    if ((artist.genres ?? []).length > 0) return artist;
+    const extra = byId.get(artist.id);
+    if (!extra?.genres?.length) return artist;
+    return { ...artist, genres: extra.genres };
+  });
+}
+
 export function mapSpotifyStats(
   artistItems: SpotifyApiArtist[],
   trackItems: SpotifyApiTrack[]
@@ -126,9 +139,10 @@ export function mapSpotifyStats(
   }));
 
   const counts = new Map<string, number>();
-  for (const artist of artistItems) {
-    for (const genre of artist.genres ?? []) {
-      counts.set(genre, (counts.get(genre) ?? 0) + 1);
+  for (let i = 0; i < artistItems.length; i++) {
+    const weight = artistItems.length - i;
+    for (const genre of artistItems[i].genres ?? []) {
+      counts.set(genre, (counts.get(genre) ?? 0) + weight);
     }
   }
   const genres = [...counts.entries()]
