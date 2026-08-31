@@ -97,22 +97,6 @@ export type SpotifyToken = {
   updated_at: string;
 };
 
-export type HoldingKind = "stock" | "fund" | "cash";
-export type HoldingAccount = "OST" | "AOT";
-
-export type PortfolioHolding = {
-  id: string;
-  user_id: string;
-  name: string;
-  ticker: string;
-  kind: HoldingKind;
-  account: HoldingAccount;
-  qty: number;
-  cost_eur: number;
-  currency: string;
-  created_at: string;
-};
-
 type Relationship = {
   foreignKeyName: string;
   columns: string[];
@@ -214,7 +198,6 @@ export type Database = {
         Update: Partial<SpotifyToken>;
         Relationships: [];
       };
-      portfolio_holdings: DbTable<PortfolioHolding>;
       user_profiles: {
         Row: UserProfile;
         Insert: {

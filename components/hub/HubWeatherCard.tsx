@@ -19,7 +19,7 @@ import {
   LoadingSpinner,
   QueryErrorBanner,
 } from "@/components/LoadingStates";
-import { FI_WEEKDAYS, toDateString } from "@/lib/dates";
+import { FI_WEEKDAYS, formatDayLength, formatFiTime, toDateString } from "@/lib/dates";
 import { formatLocaleNumber } from "@/lib/utils";
 import {
   WEATHER_STALE_MS,
@@ -195,6 +195,14 @@ export function HubWeatherCard() {
               {weather.feelsLike !== weather.currentTemp && (
                 <p className="text-xs text-zinc-500">
                   Feels like {weather.feelsLike}°
+                </p>
+              )}
+              {weather.sunrise && weather.dayLengthMs != null && (
+                <p className="mt-2 text-sm text-zinc-400">
+                  ↑ {formatFiTime(weather.sunrise)}
+                  {weather.sunset ? ` · ↓ ${formatFiTime(weather.sunset)}` : ""}
+                  {" · "}
+                  {formatDayLength(weather.dayLengthMs)}
                 </p>
               )}
             </div>

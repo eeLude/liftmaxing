@@ -34,6 +34,9 @@ export type WeatherSnapshot = {
   precipitationMm: number;
   kind: WeatherKind;
   label: string;
+  sunrise: string | null;
+  sunset: string | null;
+  dayLengthMs: number | null;
   days: WeatherDay[];
 };
 
@@ -51,6 +54,8 @@ type ForecastResponse = {
     temperature_2m_max: number[];
     temperature_2m_min: number[];
     precipitation_sum: number[];
+    sunrise?: (string | null)[];
+    sunset?: (string | null)[];
   };
 };
 
@@ -140,7 +145,7 @@ export async function getWeatherSnapshot(
   );
   url.searchParams.set(
     "daily",
-    "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum"
+    "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,sunrise,sunset"
   );
   url.searchParams.set("wind_speed_unit", "ms");
   url.searchParams.set("forecast_days", "7");
@@ -169,6 +174,15 @@ export async function getWeatherSnapshot(
     };
   });
 
+  const sunrise = daily.sunrise?.[0] || null;
+  const sunset = daily.sunset?.[0] || null;
+  const riseMs = sunrise ? new Date(sunrise).getTime() : NaN;
+  const setMs = sunset ? new Date(sunset).getTime() : NaN;
+  const dayLengthMs =
+    Number.isFinite(riseMs) && Number.isFinite(setMs) && setMs > riseMs
+      ? setMs - riseMs
+      : null;
+
   return {
     locationName: location.name,
     currentTemp: Math.round(current.temperature_2m),
@@ -177,6 +191,9 @@ export async function getWeatherSnapshot(
     precipitationMm: current.precipitation,
     kind: now.kind,
     label: now.label,
+    sunrise,
+    sunset,
+    dayLengthMs,
     days,
   };
 }

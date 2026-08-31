@@ -25,6 +25,23 @@ export function formatFiMonthYear(year: number, month: number): string {
 /** Short weekday labels Mon–Sun in Finnish */
 export const FI_WEEKDAYS = ["ma", "ti", "ke", "to", "pe", "la", "su"];
 
+export function formatFiTime(isoOrMs: string | number): string {
+  const date = typeof isoOrMs === "number" ? new Date(isoOrMs) : new Date(isoOrMs);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleTimeString("fi-FI", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
+
+export function formatDayLength(ms: number): string {
+  const totalMin = Math.max(0, Math.round(ms / 60_000));
+  const hours = Math.floor(totalMin / 60);
+  const minutes = totalMin % 60;
+  return `${hours} h ${minutes} min`;
+}
+
 /** GitHub-style contribution chart: Mon, Wed, Fri (Sun-start grid rows 1, 3, 5) */
 export const CONTRIBUTION_DAY_LABELS = ["Ma", "Ke", "Pe"] as const;
 export const CONTRIBUTION_DAY_LABEL_ROWS = [1, 3, 5] as const;
