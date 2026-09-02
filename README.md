@@ -1,10 +1,10 @@
 # Dashboard
 
-A personal hub for gym progress, reading, mood, and music — one clean screen instead of juggling separate apps.
+A personal hub for tracking habits and progress one clean screen instead of juggling separate apps.
 
 ## Why
 
-I built this for myself. No ads, no analytics, no selling accounts — just my data in my own database. The home screen is **Dashboard**; the gym section keeps the **Liftmaxing** header.
+I built this for myself. No ads, no analytics, no selling accounts, just my data in my own database. 
 
 ## Stack
 
@@ -12,19 +12,10 @@ Next.js 15 · Supabase (Auth + RLS) · TanStack Query · Recharts · Tailwind
 
 ## Features
 
-- Workout logging with autosave (Push / Pull / Legs / Upper / Run)
+- Workout logging with autosave, tracking weight and run progress.
 - Reading log, daily mood, Spotify stats
-- Hub cards: Finnish weather, electricity spot prices, flag days, homelab glance
+- Hub cards: Finnish weather, electricity spot prices, flag days, homelab status
 
-## Local setup
-
-```bash
-npm install
-cp .env.local.example .env.local   # add your keys
-npm run dev
-```
-
-Opens at [http://localhost:3000](http://localhost:3000). See `.env.local.example` for required environment variables.
 
 ## License
 
