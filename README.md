@@ -1,7 +1,7 @@
 
 # Dashboard
 
-A personal hub for tracking habits and progress one clean screen instead of juggling separate apps.
+A personal hub for tracking habits and progress with one clean screen instead of juggling separate apps.
 
 <img width="2100" height="1439" alt="Näyttökuva 2026-09-02 125414" src="https://github.com/user-attachments/assets/c76c4b14-5680-4ded-a4d7-21ca18da26fe" />
 
