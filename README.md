@@ -1,6 +1,6 @@
-# Liftmaxing
+# Dashboard
 
-Personal tracker for gym, reading, mood, Spotify, and Finnish weather. Built for myself — no ads, no accounts to sell, data stays in my Supabase.
+Personal hub for gym, reading, mood, Spotify, and Finnish weather. Built for myself — no ads, no accounts to sell, data stays in my Supabase. Gym stats live under the **Liftmaxing** page header.
 
 Live: [liftmaxing.vercel.app](https://liftmaxing.vercel.app)
 

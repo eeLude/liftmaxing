@@ -36,7 +36,7 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-dvh items-center justify-center bg-zinc-950 px-4">
       <div className="w-full max-w-sm rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
-        <h1 className="text-2xl font-bold text-zinc-100">Liftmaxxing</h1>
+        <h1 className="text-2xl font-bold text-zinc-100">Dashboard</h1>
         <p className="mt-1 text-sm text-zinc-400">
           Sign in to access your private workout data.
         </p>

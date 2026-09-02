@@ -92,7 +92,7 @@ export default function GymDashboardPage() {
     <MobileLayout>
       <header className="mb-6 flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-100">Gym</h1>
+          <h1 className="text-2xl font-bold text-zinc-100">Liftmaxing</h1>
           <p className="text-sm text-zinc-400">
             Track strength, volume & bodyweight
           </p>

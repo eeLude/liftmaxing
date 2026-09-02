@@ -1,7 +1,7 @@
 {
-  "name": "Liftmaxxing",
-  "short_name": "Liftmaxxing",
-  "description": "Workout tracking PWA",
+  "name": "Dashboard",
+  "short_name": "Dashboard",
+  "description": "Personal hub for gym, reading, mood, and more",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#09090b",

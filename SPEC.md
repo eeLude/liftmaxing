@@ -1,6 +1,6 @@
-# Liftmaxxing spec
+# Dashboard spec
 
-Personal PWA for gym, books, mood, Spotify, weather, Finnish electricity, and flag days. One user. Live: [liftmaxing.vercel.app](https://liftmaxing.vercel.app).
+Personal **Dashboard** PWA for gym, books, mood, Spotify, weather, Finnish electricity, and flag days. One user. Live: [liftmaxing.vercel.app](https://liftmaxing.vercel.app). Gym page header shows **Liftmaxing**; home hub title is **Dashboard**.
 
 **New chat:** read this file first. After a feature ships, update the matching section here.
 
@@ -34,7 +34,7 @@ Hub layout: `HubMasonry` on `app/page.tsx` packs cards into the shortest column.
 ## Product rules
 
 - Mobile-first; verify UI in the browser (hub + any other route that shares the state).
-- UI mix: English copy, Finnish dates (`formatFiDate`), comma decimals (`formatLocaleNumber`).
+- UI mix: English copy, Finnish dates (`formatFiDate`), comma decimals (`formatLocaleNumber`). Browser/PWA title **Dashboard**; gym page `h1` is **Liftmaxing**.
 - Owner is a student; prefer working in code over long design writeups.
 - Do not commit unless asked. Do not force-push. Do not put secrets, PDFs, or real quantities in git.
 
@@ -51,7 +51,7 @@ Splits (Push / Pull / Legs / Upper / Run) → session → exercises → sets. Au
 ## Other hub cards
 
 - **Weather:** Open-Meteo; saved location in `localStorage`. Today also shows sunrise, sunset, and day length (`daily=sunrise,sunset`).
-- **Flag days:** Official + established Finnish flag-flying days from sisäministeriö (`lib/flag-days.ts`). Glance is today or the next day. Not recommended-only days, elections, or inauguration.
+- **Flag days:** Official + established Finnish flag-flying days from sisäministeriö (`lib/flag-days.ts`). Hub card renders **only on a flag day** (not “next flag day”). Not recommended-only days, elections, or inauguration.
 - **Electricity:** FI spot via `app/api/electricity/route.ts` (spot-hinta.fi). Bar **height** is relative to today; **color** is absolute snt/kWh (VAT in): green ≤ 10, amber < 20, red ≥ 20.
 - **Spotify:** OAuth; tokens in `spotify_tokens`; stats via `app/api/spotify/stats` (top artists/tracks). Genre is counted from up to 50 top artists. Spotify often returns empty `genres`; missing names are filled from Apple Search `primaryGenreName` (top 10). Web API has **no monthly listening minutes** (the in-app number is first-party; recently-played tops out at ~50 tracks).
 - **Books / mood:** `books`, `mood_logs`. Mood scores 1–5 are a heatmap (rose → orange → amber → lime → emerald) in `lib/mood.ts` for week bars and the month grid. Empty days stay `zinc-800`. Picker buttons stay gray until hover.

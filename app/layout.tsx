@@ -6,8 +6,8 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Liftmaxxing",
-  description: "Mobile-first workout tracking PWA",
+  title: "Dashboard",
+  description: "Personal hub for gym, reading, mood, and more",
   manifest: "/manifest.json",
   icons: {
     icon: [
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Liftmaxxing",
+    title: "Dashboard",
   },
 };
 

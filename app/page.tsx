@@ -11,10 +11,7 @@ export default function HubPage() {
   return (
     <MobileLayout wide>
       <header className="mb-6 flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-zinc-100">Dashboard</h1>
-          <p className="text-sm text-zinc-400">Gym, reading & mood</p>
-        </div>
+        <h1 className="text-2xl font-bold text-zinc-100">Dashboard</h1>
         <button
           type="button"
           onClick={() => signOut()}

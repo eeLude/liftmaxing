@@ -13,11 +13,11 @@ function daysUntilLabel(days: number): string {
 export function HubFlagDayCard() {
   const todayIso = toDateString(new Date());
   const { today, next, daysUntilNext } = flagGlance(todayIso);
-  const headline = today ?? next;
+  if (!today) return null;
 
   return (
     <HubCard
-      title={today ? "Flag day" : "Next flag day"}
+      title="Flag day"
       footer={
         <p className="text-center text-[10px] text-zinc-600">
           FI flag days ·{" "}
@@ -35,29 +35,16 @@ export function HubFlagDayCard() {
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-3xl font-semibold tracking-tight text-zinc-100">
-            {headline.name}
+            {today.name}
           </p>
-          {today ? (
-            <p className="mt-1 text-sm text-zinc-400">today</p>
-          ) : (
-            <p className="mt-1 text-sm text-zinc-400">
-              {formatFiDateShort(next.date)} · {daysUntilLabel(daysUntilNext)}
-            </p>
-          )}
+          <p className="mt-1 text-sm text-zinc-400">today</p>
         </div>
-        <Flag
-          className={`h-10 w-10 shrink-0 ${
-            today ? "text-blue-400" : "text-zinc-600"
-          }`}
-          aria-hidden
-        />
+        <Flag className="h-10 w-10 shrink-0 text-blue-400" aria-hidden />
       </div>
-      {today && (
-        <p className="mt-3 text-sm text-zinc-500">
-          Next · {next.name} · {formatFiDateShort(next.date)} ·{" "}
-          {daysUntilLabel(daysUntilNext)}
-        </p>
-      )}
+      <p className="mt-3 text-sm text-zinc-500">
+        Next · {next.name} · {formatFiDateShort(next.date)} ·{" "}
+        {daysUntilLabel(daysUntilNext)}
+      </p>
     </HubCard>
   );
 }
