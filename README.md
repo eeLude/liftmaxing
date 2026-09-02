@@ -9,11 +9,12 @@ Live: [liftmaxing.vercel.app](https://liftmaxing.vercel.app)
 ## What it does
 
 - Log workouts by split (Push / Pull / Legs / Upper / Run), autosave sets
-- Hub: gym, weather, electricity, flag days, books, mood, Spotify
+- Hub: gym, weather, electricity, flag days, books, mood, Spotify, homelab
 - Gym dashboard: activity graph, calendar, weight, progressive overload
 - Reading log and daily mood (1–5)
 - Spotify top artists, tracks, and genre
 - Finnish flag days; weather includes sunrise and day length
+- Homelab glance (offline until the home PC + tunnel exists)
 
 ## Stack
 

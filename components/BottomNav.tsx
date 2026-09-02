@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, BookOpen, Home } from "lucide-react";
+import { Activity, BookOpen, Home, Server } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "Home", icon: Home },
   { href: "/gym", label: "Gym", icon: Activity, match: ["/gym", "/workout"] },
   { href: "/books", label: "Books", icon: BookOpen },
+  { href: "/homelab", label: "Homelab", icon: Server },
 ];
 
 export function BottomNav() {

@@ -1,6 +1,6 @@
 # Dashboard spec
 
-Personal **Dashboard** PWA for gym, books, mood, Spotify, weather, Finnish electricity, and flag days. One user. Live: [liftmaxing.vercel.app](https://liftmaxing.vercel.app). Gym page header shows **Liftmaxing**; home hub title is **Dashboard**.
+Personal **Dashboard** PWA for gym, books, mood, Spotify, weather, Finnish electricity, flag days, and a homelab glance. One user. Live: [liftmaxing.vercel.app](https://liftmaxing.vercel.app). Gym page header shows **Liftmaxing**; home hub title is **Dashboard**.
 
 **New chat:** read this file first. After a feature ships, update the matching section here.
 
@@ -17,7 +17,7 @@ Personal **Dashboard** PWA for gym, books, mood, Spotify, weather, Finnish elect
 | Area | Role |
 | --- | --- |
 | `app/page.tsx` | Hub dashboard. Renders `HUB_MODULES` from `lib/hub.ts`. |
-| `app/{gym,workout,books,mood,health,login}/` | Feature pages |
+| `app/{gym,workout,books,mood,health,homelab,login}/` | Feature pages |
 | `app/api/` | Server routes: electricity proxy, Spotify OAuth/stats |
 | `components/hub/HubXCard.tsx` | One card per hub domain |
 | `lib/*.ts` | Domain logic |
@@ -25,11 +25,11 @@ Personal **Dashboard** PWA for gym, books, mood, Spotify, weather, Finnish elect
 | `types/database.ts` | Row types + generated `Database` shape |
 | `supabase/schema.sql` | Full schema (same as `reset.sql` minus the “wipe” warning copy) |
 | `supabase/migrate-*.sql` | Incremental SQL to run in the Supabase editor |
-| `components/BottomNav.tsx` | Home, Gym, Books |
+| `components/BottomNav.tsx` | Home, Gym, Books, Homelab |
 
 Auth: `components/AuthProvider.tsx` redirects unknown users to `/login`. Public: `/login`, `/spotify/callback`.
 
-Hub layout: `HubMasonry` on `app/page.tsx` packs cards into the shortest column. Column count is `floor(containerWidth / 20rem)`. Add a domain with `HubXCard` and append it in `lib/hub.ts` (order is only a placement seed). Current order: weather, electricity, mood, gym, flag-day, books, spotify.
+Hub layout: `HubMasonry` on `app/page.tsx` packs cards into the shortest column. Column count is `floor(containerWidth / 20rem)`. Add a domain with `HubXCard` and append it in `lib/hub.ts` (order is only a placement seed). Current order: weather, electricity, mood, gym, homelab, flag-day, books, spotify.
 
 ## Product rules
 
@@ -55,6 +55,7 @@ Splits (Push / Pull / Legs / Upper / Run) → session → exercises → sets. Au
 - **Electricity:** FI spot via `app/api/electricity/route.ts` (spot-hinta.fi). Bar **height** is relative to today; **color** is absolute snt/kWh (VAT in): green ≤ 10, amber < 20, red ≥ 20.
 - **Spotify:** OAuth; tokens in `spotify_tokens`; stats via `app/api/spotify/stats` (top artists/tracks). Genre is counted from up to 50 top artists. Spotify often returns empty `genres`; missing names are filled from Apple Search `primaryGenreName` (top 10). Web API has **no monthly listening minutes** (the in-app number is first-party; recently-played tops out at ~50 tracks).
 - **Books / mood:** `books`, `mood_logs`. Mood scores 1–5 are a heatmap (rose → orange → amber → lime → emerald) in `lib/mood.ts` for week bars and the month grid. Empty days stay `zinc-800`. Picker buttons stay gray until hover.
+- **Homelab:** `/homelab` + hub card. Host is HP EliteDesk 800 G5 SFF (i5-8500T, 16 GB, 512 GB). Snapshot type in `lib/homelab.ts`; `getHomelabSnapshot()` is **null** until a Tailscale/Cloudflare tunnel exists. Do **not** poll LAN IPs from Vercel. Planned services: Immich, Joplin Server, Home Assistant, AdGuard Home. Router (ASUS RT-AX53U) later via HA `asuswrt`.
 
 There is **no portfolio**. Drop leftover `portfolio_holdings` with `supabase/migrate-drop-portfolio.sql`.
 
