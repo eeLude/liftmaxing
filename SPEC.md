@@ -1,8 +1,8 @@
 # Dashboard spec
 
-Personal **Dashboard** PWA for gym, books, mood, Spotify, weather, Finnish electricity, flag days, and a homelab glance. One user. Live: [liftmaxing.vercel.app](https://liftmaxing.vercel.app). Gym page header shows **Liftmaxing**; home hub title is **Dashboard**.
+Personal **Dashboard** PWA for gym, books, mood, Spotify, weather, Finnish electricity, flag days, and a homelab glance. Single-user app. Gym page header shows **Liftmaxing**; home hub title is **Dashboard**.
 
-**New chat:** read this file first. After a feature ships, update the matching section here.
+Developer reference — update the matching section when a feature ships.
 
 ## Stack and run
 
@@ -35,7 +35,6 @@ Hub layout: `HubMasonry` on `app/page.tsx` packs cards into the shortest column.
 
 - Mobile-first; verify UI in the browser (hub + any other route that shares the state).
 - UI mix: English copy, Finnish dates (`formatFiDate`), comma decimals (`formatLocaleNumber`). Browser/PWA title **Dashboard**; gym page `h1` is **Liftmaxing**.
-- Owner is a student; prefer working in code over long design writeups.
 - Do not commit unless asked. Do not force-push. Do not put secrets, PDFs, or real quantities in git.
 
 ### Never commit

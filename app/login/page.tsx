@@ -6,7 +6,6 @@ import { supabase } from "@/lib/supabase";
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [mode, setMode] = useState<"login" | "signup">("login");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -15,21 +14,15 @@ export default function LoginPage() {
     setError(null);
     setBusy(true);
 
-    const result =
-      mode === "login"
-        ? await supabase.auth.signInWithPassword({ email, password })
-        : await supabase.auth.signUp({ email, password });
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
     setBusy(false);
 
-    if (result.error) {
-      setError(result.error.message);
-      return;
-    }
-
-    if (mode === "signup" && !result.data.session) {
-      setError("Account created. Confirm your email if required, then sign in.");
-      setMode("login");
+    if (signInError) {
+      setError(signInError.message);
     }
   };
 
@@ -61,9 +54,7 @@ export default function LoginPage() {
               type="password"
               required
               minLength={8}
-              autoComplete={
-                mode === "login" ? "current-password" : "new-password"
-              }
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2.5"
@@ -77,21 +68,9 @@ export default function LoginPage() {
             disabled={busy}
             className="w-full rounded-xl bg-brand py-3 font-semibold text-white disabled:opacity-60"
           >
-            {busy ? "Please wait..." : mode === "login" ? "Sign in" : "Create account"}
+            {busy ? "Please wait..." : "Sign in"}
           </button>
         </form>
-
-        <button
-          type="button"
-          onClick={() =>
-            setMode((m) => (m === "login" ? "signup" : "login"))
-          }
-          className="mt-4 w-full text-sm text-zinc-500 hover:text-zinc-300"
-        >
-          {mode === "login"
-            ? "Need an account? Sign up"
-            : "Already have an account? Sign in"}
-        </button>
       </div>
     </div>
   );

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { LoadingSpinner } from "@/components/LoadingStates";
 import { takePkceFromStorage } from "@/lib/spotify";
 import { upsertSpotifyRefreshToken } from "@/lib/queries";
+import { supabase } from "@/lib/supabase";
 
 export default function SpotifyCallbackPage() {
   const router = useRouter();
@@ -32,9 +33,19 @@ export default function SpotifyCallbackPage() {
     let cancelled = false;
     (async () => {
       try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session?.access_token) {
+          throw new Error("Sign in first, then connect Spotify.");
+        }
+
         const res = await fetch("/api/spotify/exchange", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
           body: JSON.stringify({ code, verifier: pkce.verifier }),
         });
         const data = (await res.json()) as {

@@ -1,25 +1,31 @@
 # Dashboard
 
-Personal hub for gym, reading, mood, Spotify, and Finnish weather. Built for myself — no ads, no accounts to sell, data stays in my Supabase. Gym stats live under the **Liftmaxing** page header.
+A personal hub for gym progress, reading, mood, and music — one clean screen instead of juggling separate apps.
 
-Live: [liftmaxing.vercel.app](https://liftmaxing.vercel.app)
+## Why
 
-▶️ [Demo](https://www.youtube.com/shorts/UbDtB0gqzLw)
-
-## What it does
-
-- Log workouts by split (Push / Pull / Legs / Upper / Run), autosave sets
-- Hub: gym, weather, electricity, flag days, books, mood, Spotify, homelab
-- Gym dashboard: activity graph, calendar, weight, progressive overload
-- Reading log and daily mood (1–5)
-- Spotify top artists, tracks, and genre
-- Finnish flag days; weather includes sunrise and day length
-- Homelab glance (offline until the home PC + tunnel exists)
+I built this for myself. No ads, no analytics, no selling accounts — just my data in my own database. The home screen is **Dashboard**; the gym section keeps the **Liftmaxing** header.
 
 ## Stack
 
-Next.js 15, Supabase (Auth + RLS), TanStack Query, Recharts
+Next.js 15 · Supabase (Auth + RLS) · TanStack Query · Recharts · Tailwind
 
-## For a new AI chat
+## Features
 
-Read **[SPEC.md](SPEC.md)** first (architecture, file map, and working rules). Update that file when you add a domain.
+- Workout logging with autosave (Push / Pull / Legs / Upper / Run)
+- Reading log, daily mood, Spotify stats
+- Hub cards: Finnish weather, electricity spot prices, flag days, homelab glance
+
+## Local setup
+
+```bash
+npm install
+cp .env.local.example .env.local   # add your keys
+npm run dev
+```
+
+Opens at [http://localhost:3000](http://localhost:3000). See `.env.local.example` for required environment variables.
+
+## License
+
+MIT
