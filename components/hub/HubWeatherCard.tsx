@@ -14,6 +14,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { useLocale } from "@/components/LocaleProvider";
 import { HubCard } from "@/components/hub/HubCard";
 import {
   LoadingSpinner,
@@ -61,6 +62,7 @@ function WeatherGlyph({
 }
 
 export function HubWeatherCard() {
+  const { t } = useLocale();
   const [location, setLocation] = useState<WeatherLocation | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [geoError, setGeoError] = useState<string | null>(null);
@@ -80,7 +82,7 @@ export function HubWeatherCard() {
 
   const requestLocation = useCallback(() => {
     if (!navigator.geolocation) {
-      setGeoError("Location is not available in this browser.");
+      setGeoError(t("hub.weather.locationUnavailable"));
       return;
     }
     setGeoError(null);
@@ -99,13 +101,13 @@ export function HubWeatherCard() {
         setGeoPending(false);
         setGeoError(
           err.code === err.PERMISSION_DENIED
-            ? "Location permission denied."
-            : "Could not get location."
+            ? t("hub.weather.permissionDenied")
+            : t("hub.weather.locationFailed")
         );
       },
       { enableHighAccuracy: false, timeout: 12_000, maximumAge: 10 * 60_000 }
     );
-  }, []);
+  }, [t]);
 
   const clearLocation = useCallback(() => {
     clearWeatherLocation();
@@ -119,7 +121,7 @@ export function HubWeatherCard() {
 
   return (
     <HubCard
-      title="Weather"
+      title={t("card.weather")}
       footer={
         <p className="text-center text-[10px] text-zinc-600">
           Weather data by{" "}
@@ -137,7 +139,7 @@ export function HubWeatherCard() {
       {!hydrated && (
         <div className="flex items-center gap-2 text-sm text-zinc-500">
           <LoadingSpinner className="h-4 w-4" />
-          Loading…
+          {t("common.loading")}
         </div>
       )}
 
@@ -160,14 +162,14 @@ export function HubWeatherCard() {
             ) : (
               <MapPin className="h-4 w-4" />
             )}
-            {geoPending ? "Getting location…" : "Use my location"}
+            {geoPending ? t("hub.weather.gettingLocation") : t("hub.weather.useLocation")}
           </button>
         </div>
       )}
 
       {location && weatherQuery.isError && (
         <QueryErrorBanner
-          message="Could not load weather."
+          message={t("hub.weather.error")}
           onRetry={() => void weatherQuery.refetch()}
         />
       )}
@@ -175,7 +177,7 @@ export function HubWeatherCard() {
       {location && weatherQuery.isLoading && (
         <div className="flex items-center gap-2 text-sm text-zinc-500">
           <LoadingSpinner className="h-4 w-4" />
-          Loading…
+          {t("common.loading")}
         </div>
       )}
 

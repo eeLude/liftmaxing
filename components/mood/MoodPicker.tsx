@@ -1,6 +1,8 @@
 "use client";
 
 import { MOOD_OPTIONS, type MoodScore } from "@/lib/mood";
+import { useLocale } from "@/components/LocaleProvider";
+import type { MessageKey } from "@/lib/i18n/messages";
 
 export function MoodPicker({
   value,
@@ -11,6 +13,8 @@ export function MoodPicker({
   onChange: (score: MoodScore) => void;
   disabled?: boolean;
 }) {
+  const { t } = useLocale();
+
   return (
     <div className="grid grid-cols-5 gap-1.5">
       {MOOD_OPTIONS.map((option) => {
@@ -25,7 +29,7 @@ export function MoodPicker({
               selected ? "ring-2 ring-zinc-400" : "ring-1 ring-transparent"
             }`}
           >
-            {option.label}
+            {t(`mood.${option.score}` as MessageKey)}
           </button>
         );
       })}

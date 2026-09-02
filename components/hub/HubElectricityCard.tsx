@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
+import { useLocale } from "@/components/LocaleProvider";
 import { HubCard } from "@/components/hub/HubCard";
 import {
   LoadingSpinner,
@@ -27,6 +28,7 @@ async function fetchSpotPrices(): Promise<SpotSnapshot> {
 }
 
 export function HubElectricityCard() {
+  const { t } = useLocale();
   const [nowMs, setNowMs] = useState(() => Date.now());
 
   useEffect(() => {
@@ -66,7 +68,7 @@ export function HubElectricityCard() {
 
   return (
     <HubCard
-      title="Electricity"
+      title={t("card.electricity")}
       footer={
         <p className="text-center text-[10px] text-zinc-600">
           FI spot ·{" "}
@@ -83,7 +85,7 @@ export function HubElectricityCard() {
     >
       {query.isError && (
         <QueryErrorBanner
-          message="Could not load electricity prices."
+          message={t("hub.electricity.error")}
           onRetry={() => void query.refetch()}
         />
       )}
@@ -91,7 +93,7 @@ export function HubElectricityCard() {
       {query.isLoading && !current && (
         <div className="flex items-center gap-2 text-sm text-zinc-500">
           <LoadingSpinner className="h-4 w-4" />
-          Loading…
+          {t("common.loading")}
         </div>
       )}
 

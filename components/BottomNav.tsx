@@ -3,21 +3,34 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Activity, BookOpen, Home, Server } from "lucide-react";
+import { useLocale } from "@/components/LocaleProvider";
+import type { MessageKey } from "@/lib/i18n/messages";
 
-const navItems = [
-  { href: "/", label: "Home", icon: Home },
-  { href: "/gym", label: "Gym", icon: Activity, match: ["/gym", "/workout"] },
-  { href: "/books", label: "Books", icon: BookOpen },
-  { href: "/homelab", label: "Homelab", icon: Server },
+const navItems: {
+  href: string;
+  labelKey: MessageKey;
+  icon: typeof Home;
+  match?: string[];
+}[] = [
+  { href: "/", labelKey: "nav.home", icon: Home },
+  {
+    href: "/gym",
+    labelKey: "nav.gym",
+    icon: Activity,
+    match: ["/gym", "/workout"],
+  },
+  { href: "/books", labelKey: "nav.books", icon: BookOpen },
+  { href: "/homelab", labelKey: "nav.homelab", icon: Server },
 ];
 
 export function BottomNav() {
   const pathname = usePathname();
+  const { t } = useLocale();
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-zinc-800 bg-zinc-950/95 backdrop-blur safe-bottom">
       <div className="mx-auto flex max-w-lg items-stretch justify-around">
-        {navItems.map(({ href, label, icon: Icon, match }) => {
+        {navItems.map(({ href, labelKey, icon: Icon, match }) => {
           const prefixes = match ?? [href];
           const active =
             href === "/"
@@ -35,7 +48,7 @@ export function BottomNav() {
               }`}
             >
               <Icon className="h-5 w-5" strokeWidth={active ? 2.5 : 2} />
-              {label}
+              {t(labelKey)}
             </Link>
           );
         })}

@@ -10,6 +10,7 @@ import {
 import { usePathname, useRouter } from "next/navigation";
 import type { Session, User } from "@supabase/supabase-js";
 import { LoadingSpinner } from "@/components/LoadingStates";
+import { useLocale } from "@/components/LocaleProvider";
 import { supabase } from "@/lib/supabase";
 
 type AuthContextValue = {
@@ -35,6 +36,7 @@ function AuthLoadingScreen({ message }: { message: string }) {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const { t } = useLocale();
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const pathname = usePathname();
@@ -86,11 +88,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   if (loading) {
-    return <AuthLoadingScreen message="Loading..." />;
+    return <AuthLoadingScreen message={t("auth.loading")} />;
   }
 
   if (!session && !isPublicPath(pathname)) {
-    return <AuthLoadingScreen message="Redirecting to login..." />;
+    return <AuthLoadingScreen message={t("common.redirectLogin")} />;
   }
 
   return (

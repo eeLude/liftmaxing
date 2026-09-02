@@ -8,6 +8,7 @@ import {
 } from "@tanstack/react-query";
 import { useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
+import { useLocale } from "@/components/LocaleProvider";
 import { HubCard } from "@/components/hub/HubCard";
 import {
   LoadingSpinner,
@@ -47,6 +48,7 @@ async function fetchSpotifyStats(
 }
 
 export function HubSpotifyCard() {
+  const { t } = useLocale();
   const { session } = useAuth();
   const queryClient = useQueryClient();
   const accessToken = session?.access_token;
@@ -88,7 +90,7 @@ export function HubSpotifyCard() {
 
   return (
     <HubCard
-      title="Spotify"
+      title={t("card.spotify")}
       footer={
         connected ? (
           <button
@@ -97,20 +99,20 @@ export function HubSpotifyCard() {
             disabled={disconnect.isPending}
             className="w-full text-center text-xs text-zinc-500 hover:text-zinc-300 disabled:opacity-60"
           >
-            {disconnect.isPending ? "Disconnecting…" : "Disconnect"}
+            {disconnect.isPending
+              ? t("hub.spotify.disconnecting")
+              : t("hub.spotify.disconnect")}
           </button>
         ) : null
       }
     >
       {!configured && (
-        <p className="text-sm text-zinc-500">
-          Add Spotify keys to .env.local to connect.
-        </p>
+        <p className="text-sm text-zinc-500">{t("hub.spotify.notConfigured")}</p>
       )}
 
       {configured && connectedQuery.isError && (
         <QueryErrorBanner
-          message="Could not load Spotify. Run supabase/migrate-spotify.sql if the table is missing."
+          message={t("hub.spotify.migrateHint")}
           onRetry={() => void connectedQuery.refetch()}
         />
       )}
@@ -118,14 +120,14 @@ export function HubSpotifyCard() {
       {configured && connectedQuery.isLoading && (
         <div className="flex items-center gap-2 text-sm text-zinc-500">
           <LoadingSpinner className="h-4 w-4" />
-          Loading…
+          {t("common.loading")}
         </div>
       )}
 
       {configured && connected && statsQuery.isLoading && !stats && (
         <div className="flex items-center gap-2 text-sm text-zinc-500">
           <LoadingSpinner className="h-4 w-4" />
-          Loading…
+          {t("common.loading")}
         </div>
       )}
 
@@ -137,7 +139,7 @@ export function HubSpotifyCard() {
             message={
               statsQuery.error instanceof Error
                 ? statsQuery.error.message
-                : "Could not load Spotify."
+                : t("hub.spotify.error")
             }
             onRetry={() => void statsQuery.refetch()}
           />
@@ -146,14 +148,14 @@ export function HubSpotifyCard() {
       {showConnect && (
         <div>
           <p className="mb-3 text-sm text-zinc-500">
-            Listening stats from Spotify.
+            {t("hub.spotify.listeningStats")}
           </p>
           <button
             type="button"
             onClick={() => void startSpotifyLogin()}
             className="inline-flex w-full items-center justify-center rounded-xl border border-zinc-700 py-2.5 text-sm font-medium text-zinc-200 hover:border-zinc-500"
           >
-            Connect Spotify
+            {t("hub.spotify.connectSpotify")}
           </button>
         </div>
       )}

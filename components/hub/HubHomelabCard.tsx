@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
+import { useLocale } from "@/components/LocaleProvider";
 import { HubCard } from "@/components/hub/HubCard";
 import {
   LoadingSpinner,
@@ -22,6 +23,7 @@ function statusDotClass(status: HomelabServiceStatus): string {
 }
 
 export function HubHomelabCard() {
+  const { t } = useLocale();
   const query = useQuery({
     queryKey: ["homelab-snapshot"],
     queryFn: getHomelabSnapshot,
@@ -33,27 +35,27 @@ export function HubHomelabCard() {
 
   return (
     <HubCard
-      title="Homelab"
+      title={t("card.homelab")}
       footer={
         <Link
           href="/homelab"
           className="inline-flex w-full items-center justify-center gap-1 rounded-xl border border-zinc-700 py-2.5 text-sm font-medium text-zinc-200 hover:border-zinc-500"
         >
-          Open homelab
+          {t("hub.homelab.open")}
           <ChevronRight className="h-4 w-4" />
         </Link>
       }
     >
       {query.isError && (
         <QueryErrorBanner
-          message="Could not load homelab."
+          message={t("hub.homelab.error")}
           onRetry={() => void query.refetch()}
         />
       )}
       {query.isLoading && (
         <div className="flex items-center gap-2 text-sm text-zinc-500">
           <LoadingSpinner className="h-4 w-4" />
-          Loading…
+          {t("common.loading")}
         </div>
       )}
       {!query.isLoading && !query.isError && (
@@ -61,7 +63,7 @@ export function HubHomelabCard() {
           {online ? (
             <>
               <p className="text-3xl font-semibold tracking-tight text-emerald-400">
-                Online
+                {t("hub.homelab.online")}
               </p>
               <p className="mt-1 text-sm text-zinc-400">
                 CPU {formatLocaleNumber(snapshot!.cpuPct ?? 0, 0)}%
@@ -74,9 +76,11 @@ export function HubHomelabCard() {
           ) : (
             <>
               <p className="text-3xl font-semibold tracking-tight text-zinc-100">
-                Offline
+                {t("hub.homelab.offline")}
               </p>
-              <p className="mt-1 text-sm text-zinc-500">PC not online yet</p>
+              <p className="mt-1 text-sm text-zinc-500">
+                {t("hub.homelab.notOnline")}
+              </p>
             </>
           )}
           <div className="mt-4 flex gap-3">
@@ -90,7 +94,9 @@ export function HubHomelabCard() {
                   className={`h-2 w-2 rounded-full ${statusDotClass(service.status)}`}
                 />
                 <p className="w-full truncate text-center text-[10px] text-zinc-500">
-                  {service.id === "home-assistant" ? "HA" : service.name.split(" ")[0]}
+                  {service.id === "home-assistant"
+                    ? "HA"
+                    : service.name.split(" ")[0]}
                 </p>
               </div>
             ))}

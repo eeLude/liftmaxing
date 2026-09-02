@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { BookOpen, ChevronRight } from "lucide-react";
+import { useLocale } from "@/components/LocaleProvider";
 import { HubBookshelf } from "@/components/hub/HubBookshelf";
 import { HubCard } from "@/components/hub/HubCard";
 import {
@@ -14,6 +15,7 @@ import { getBookYearStats } from "@/lib/queries";
 import { formatLocaleNumber } from "@/lib/utils";
 
 export function HubBooksCard() {
+  const { t } = useLocale();
   const booksQuery = useQuery({
     queryKey: ["book-year-stats"],
     queryFn: getBookYearStats,
@@ -26,27 +28,27 @@ export function HubBooksCard() {
 
   return (
     <HubCard
-      title="Books"
+      title={t("card.books")}
       footer={
         <Link
           href="/books"
           className="inline-flex w-full items-center justify-center gap-1 rounded-xl border border-zinc-700 py-2.5 text-sm font-medium text-zinc-200 hover:border-zinc-500"
         >
-          Open reading log
+          {t("hub.books.openLog")}
           <ChevronRight className="h-4 w-4" />
         </Link>
       }
     >
       {booksQuery.isError && (
         <QueryErrorBanner
-          message="Could not load books."
+          message={t("hub.books.error")}
           onRetry={() => void booksQuery.refetch()}
         />
       )}
       {booksQuery.isLoading && (
         <div className="flex items-center gap-2 text-sm text-zinc-500">
           <LoadingSpinner className="h-4 w-4" />
-          Loading…
+          {t("common.loading")}
         </div>
       )}
       {bookStats && hasBooks && (
@@ -55,7 +57,9 @@ export function HubBooksCard() {
             {bookStats.finishedCount}
           </p>
           <p className="text-sm text-zinc-500">
-            book{bookStats.finishedCount === 1 ? "" : "s"} this year
+            {bookStats.finishedCount === 1
+              ? t("hub.books.bookThisYear")
+              : t("hub.books.booksThisYear")}
           </p>
           {bookStats.pageCount > 0 && (
             <p className="mt-1 text-sm text-zinc-500">
@@ -69,7 +73,7 @@ export function HubBooksCard() {
             <ul className="mt-3 space-y-1">
               {reading.slice(0, 3).map((book) => (
                 <li key={book.id} className="text-sm text-zinc-300">
-                  <span className="text-zinc-500">Now · </span>
+                  <span className="text-zinc-500">{t("hub.books.nowReading")} · </span>
                   {book.title}
                   {book.author ? (
                     <span className="text-zinc-500"> · {book.author}</span>
@@ -85,7 +89,7 @@ export function HubBooksCard() {
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zinc-800 text-brand">
             <BookOpen className="h-5 w-5" />
           </div>
-          <p className="text-sm text-zinc-500">No books logged yet</p>
+          <p className="text-sm text-zinc-500">{t("hub.books.noBooksYet")}</p>
         </div>
       )}
     </HubCard>

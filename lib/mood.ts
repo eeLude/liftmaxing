@@ -1,4 +1,5 @@
 import type { MoodLog } from "@/types/database";
+import { translate, type Locale, type MessageKey } from "@/lib/i18n/messages";
 import { formatLocaleNumber } from "@/lib/utils";
 
 export const MOOD_SCORES = [1, 2, 3, 4, 5] as const;
@@ -55,9 +56,12 @@ export function moodFill(score: number | null | undefined): string {
   return FILL_BY_SCORE[score as MoodScore];
 }
 
-export function moodLabel(score: number | null | undefined): string {
-  if (score == null) return "";
-  return MOOD_OPTIONS.find((o) => o.score === score)?.label ?? "";
+export function moodLabel(
+  score: number | null | undefined,
+  locale: Locale = "en"
+): string {
+  if (score == null || score < 1 || score > 5) return "";
+  return translate(locale, `mood.${score}` as MessageKey);
 }
 
 export function averageMood(logs: MoodLog[]): number | null {

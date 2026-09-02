@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { MobileLayout } from "@/components/MobileLayout";
+import { LocaleToggle } from "@/components/LocaleToggle";
+import { useLocale } from "@/components/LocaleProvider";
 import { QueryErrorBanner } from "@/components/LoadingStates";
 import { MoodMonthGrid } from "@/components/mood/MoodMonthGrid";
 import { MoodPicker } from "@/components/mood/MoodPicker";
@@ -21,6 +23,7 @@ import { deleteMoodLog, getMoodLogs, upsertMoodLog } from "@/lib/queries";
 import type { MoodLog } from "@/types/database";
 
 export default function MoodPage() {
+  const { t, locale } = useLocale();
   const queryClient = useQueryClient();
   const today = toDateString(new Date());
   const now = new Date();
@@ -105,32 +108,43 @@ export default function MoodPage() {
 
   return (
     <MobileLayout>
-      <header className="mb-6">
-        <h1 className="text-2xl font-bold text-zinc-100">Mood</h1>
-        <p className="text-sm text-zinc-400">Daily check-in</p>
+      <header className="mb-6 flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-zinc-100">
+            {t("moodPage.title")}
+          </h1>
+          <p className="text-sm text-zinc-400">{t("moodPage.subtitle")}</p>
+        </div>
+        <LocaleToggle />
       </header>
 
       {moodQuery.isError && (
         <QueryErrorBanner
-          message="Could not load mood. Run supabase/migrate-mood.sql if the table is missing."
+          message={t("moodPage.error")}
           onRetry={() => void moodQuery.refetch()}
         />
       )}
 
       {(weekAvg || streak > 0) && (
         <p className="mb-4 text-sm text-zinc-400">
-          {weekAvg ? `Week avg ${weekAvg}` : null}
+          {weekAvg ? t("hub.mood.weekAvgFmt", { avg: weekAvg }) : null}
           {weekAvg && streak > 0 ? " · " : null}
           {streak > 0
-            ? `${streak} day${streak === 1 ? "" : "s"} streak`
+            ? t(streak === 1 ? "hub.mood.streakFmt" : "hub.mood.streaksFmt", {
+                count: streak,
+              })
             : null}
         </p>
       )}
 
       <section className="mb-4 rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
         <p className="mb-3 text-sm font-medium text-zinc-300">
-          {selectedDate === today ? "Today" : formatFiDate(selectedDate)}
-          {selectedLog ? ` · ${moodLabel(selectedLog.score)}` : ""}
+          {selectedDate === today
+            ? t("hub.mood.todayPrefix")
+            : formatFiDate(selectedDate)}
+          {selectedLog
+            ? ` · ${moodLabel(selectedLog.score, locale)}`
+            : ""}
         </p>
         <MoodPicker
           value={selectedLog?.score ?? null}
@@ -139,7 +153,7 @@ export default function MoodPage() {
         />
         <label className="mt-4 block">
           <span className="mb-1.5 block text-sm font-medium text-zinc-400">
-            Note
+            {t("moodPage.note")}
           </span>
           <textarea
             value={note}
@@ -149,9 +163,7 @@ export default function MoodPage() {
             disabled={!selectedLog}
             className="w-full rounded-xl border border-zinc-700 px-4 py-3 text-sm disabled:opacity-50"
             placeholder={
-              selectedLog
-                ? "Optional"
-                : "Pick a mood first"
+              selectedLog ? t("moodPage.noteOptional") : t("moodPage.pickMoodFirst")
             }
           />
         </label>
@@ -162,13 +174,11 @@ export default function MoodPage() {
             disabled={deleteMutation.isPending}
             className="mt-3 w-full py-2 text-sm text-red-400 disabled:opacity-50"
           >
-            Clear this day
+            {t("moodPage.clear")}
           </button>
         )}
         {saveMutation.isError && (
-          <p className="mt-2 text-sm text-red-400">
-            Could not save. Run supabase/migrate-mood.sql if the table is missing.
-          </p>
+          <p className="mt-2 text-sm text-red-400">{t("hub.mood.saveError")}</p>
         )}
       </section>
 
@@ -206,7 +216,7 @@ export default function MoodPage() {
       {notes.length > 0 && (
         <section>
           <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-zinc-400">
-            Notes
+            {t("moodPage.recentNotes")}
           </h2>
           <ul className="space-y-2">
             {notes.map((log) => (
@@ -217,7 +227,7 @@ export default function MoodPage() {
                   className="w-full rounded-2xl border border-zinc-800 bg-zinc-900 p-4 text-left hover:border-zinc-600"
                 >
                   <p className="text-sm font-medium text-zinc-100">
-                    {formatFiDate(log.date)} · {moodLabel(log.score)}
+                    {formatFiDate(log.date)} · {moodLabel(log.score, locale)}
                   </p>
                   <p className="mt-1 line-clamp-3 text-sm text-zinc-400">
                     {log.note}

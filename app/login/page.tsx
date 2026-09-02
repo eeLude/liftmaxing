@@ -1,9 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { LocaleToggle } from "@/components/LocaleToggle";
+import { useLocale } from "@/components/LocaleProvider";
 import { supabase } from "@/lib/supabase";
 
 export default function LoginPage() {
+  const { t } = useLocale();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -29,14 +32,17 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-dvh items-center justify-center bg-zinc-950 px-4">
       <div className="w-full max-w-sm rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
-        <h1 className="text-2xl font-bold text-zinc-100">Dashboard</h1>
-        <p className="mt-1 text-sm text-zinc-400">
-          Sign in to access your private workout data.
-        </p>
+        <div className="flex items-start justify-between gap-3">
+          <h1 className="text-2xl font-bold text-zinc-100">{t("hub.title")}</h1>
+          <LocaleToggle />
+        </div>
+        <p className="mt-1 text-sm text-zinc-400">{t("login.subtitle")}</p>
 
         <form onSubmit={submit} className="mt-6 space-y-4">
           <div>
-            <label className="mb-1.5 block text-sm text-zinc-400">Email</label>
+            <label className="mb-1.5 block text-sm text-zinc-400">
+              {t("login.email")}
+            </label>
             <input
               type="email"
               required
@@ -48,7 +54,7 @@ export default function LoginPage() {
           </div>
           <div>
             <label className="mb-1.5 block text-sm text-zinc-400">
-              Password
+              {t("login.password")}
             </label>
             <input
               type="password"
@@ -68,7 +74,7 @@ export default function LoginPage() {
             disabled={busy}
             className="w-full rounded-xl bg-brand py-3 font-semibold text-white disabled:opacity-60"
           >
-            {busy ? "Please wait..." : "Sign in"}
+            {busy ? t("login.wait") : t("login.submit")}
           </button>
         </form>
       </div>

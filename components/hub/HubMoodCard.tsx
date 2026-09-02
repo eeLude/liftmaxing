@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
+import { useLocale } from "@/components/LocaleProvider";
 import { HubCard } from "@/components/hub/HubCard";
 import {
   LoadingSpinner,
@@ -23,6 +24,7 @@ import {
 import { getMoodLogs, upsertMoodLog } from "@/lib/queries";
 
 export function HubMoodCard() {
+  const { t, locale } = useLocale();
   const queryClient = useQueryClient();
   const today = toDateString(new Date());
   const weekStart = lastNDays(today, 7)[0];
@@ -49,33 +51,33 @@ export function HubMoodCard() {
 
   return (
     <HubCard
-      title="Mood"
+      title={t("card.mood")}
       footer={
         <Link
           href="/mood"
           className="inline-flex w-full items-center justify-center gap-1 rounded-xl border border-zinc-700 py-2.5 text-sm font-medium text-zinc-200 hover:border-zinc-500"
         >
-          Open mood log
+          {t("hub.mood.openLog")}
           <ChevronRight className="h-4 w-4" />
         </Link>
       }
     >
       {moodQuery.isError && (
         <QueryErrorBanner
-          message="Could not load mood. Run supabase/migrate-mood.sql if the table is missing."
+          message={t("hub.mood.error")}
           onRetry={() => void moodQuery.refetch()}
         />
       )}
       {moodQuery.isLoading && (
         <div className="mb-3 flex items-center gap-2 text-sm text-zinc-500">
           <LoadingSpinner className="h-4 w-4" />
-          Loading…
+          {t("common.loading")}
         </div>
       )}
       <p className="mb-3 text-sm text-zinc-500">
         {todayLog
-          ? `Today · ${moodLabel(todayLog.score)}`
-          : "How are you today?"}
+          ? `${t("hub.mood.todayPrefix")} · ${moodLabel(todayLog.score, locale)}`
+          : t("hub.mood.today")}
       </p>
       <MoodPicker
         value={todayLog?.score ?? null}
@@ -83,9 +85,7 @@ export function HubMoodCard() {
         onChange={(score) => saveMutation.mutate(score)}
       />
       {saveMutation.isError && (
-        <p className="mt-2 text-sm text-red-400">
-          Could not save. Run supabase/migrate-mood.sql if the table is missing.
-        </p>
+        <p className="mt-2 text-sm text-red-400">{t("hub.mood.saveError")}</p>
       )}
       <div className="mt-4 flex items-end gap-1">
         {weekDays.map((iso) => {
@@ -93,7 +93,11 @@ export function HubMoodCard() {
           return (
             <div
               key={iso}
-              title={log ? `${iso} · ${moodLabel(log.score)}` : iso}
+              title={
+                log
+                  ? `${iso} · ${moodLabel(log.score, locale)}`
+                  : iso
+              }
               className={`h-6 flex-1 rounded-sm ${moodFill(log?.score)} ${
                 iso === today ? "ring-1 ring-zinc-400" : ""
               }`}
@@ -103,10 +107,12 @@ export function HubMoodCard() {
       </div>
       {(weekAvg || streak > 0) && (
         <p className="mt-2 text-sm text-zinc-500">
-          {weekAvg ? `Week avg ${weekAvg}` : null}
+          {weekAvg ? t("hub.mood.weekAvgFmt", { avg: weekAvg }) : null}
           {weekAvg && streak > 0 ? " · " : null}
           {streak > 0
-            ? `${streak} day${streak === 1 ? "" : "s"} streak`
+            ? t(streak === 1 ? "hub.mood.streakFmt" : "hub.mood.streaksFmt", {
+                count: streak,
+              })
             : null}
         </p>
       )}

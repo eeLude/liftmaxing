@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Plus } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { LocaleToggle } from "@/components/LocaleToggle";
+import { useLocale } from "@/components/LocaleProvider";
 import { MobileLayout } from "@/components/MobileLayout";
 import { QueryErrorBanner } from "@/components/LoadingStates";
 import { computeBookYearStats, formatBookYearLine } from "@/lib/books";
@@ -73,6 +75,7 @@ function formToInput(form: FormState): BookInput {
 }
 
 export default function BooksPage() {
+  const { t } = useLocale();
   const queryClient = useQueryClient();
   const booksQuery = useQuery({
     queryKey: ["books"],
@@ -150,22 +153,25 @@ export default function BooksPage() {
     <MobileLayout>
       <header className="mb-6 flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-100">Books</h1>
-          <p className="text-sm text-zinc-400">What you are reading</p>
+          <h1 className="text-2xl font-bold text-zinc-100">{t("books.title")}</h1>
+          <p className="text-sm text-zinc-400">{t("books.subtitle")}</p>
         </div>
-        <button
-          type="button"
-          onClick={openNew}
-          className="inline-flex items-center gap-1 rounded-xl bg-brand px-3 py-2 text-sm font-semibold text-white"
-        >
-          <Plus className="h-4 w-4" />
-          Add
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          <LocaleToggle />
+          <button
+            type="button"
+            onClick={openNew}
+            className="inline-flex items-center gap-1 rounded-xl bg-brand px-3 py-2 text-sm font-semibold text-white"
+          >
+            <Plus className="h-4 w-4" />
+            {t("books.addShort")}
+          </button>
+        </div>
       </header>
 
       {booksQuery.isError && (
         <QueryErrorBanner
-          message="Could not load books. Run supabase/migrate-books.sql if the table is missing."
+          message={t("books.error")}
           onRetry={() => void booksQuery.refetch()}
         />
       )}

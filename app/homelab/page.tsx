@@ -1,6 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { LocaleToggle } from "@/components/LocaleToggle";
+import { useLocale } from "@/components/LocaleProvider";
 import { MobileLayout } from "@/components/MobileLayout";
 import {
   LoadingSpinner,
@@ -15,10 +17,13 @@ import {
 } from "@/lib/homelab";
 import { formatLocaleNumber } from "@/lib/utils";
 
-function statusLabel(status: HomelabServiceStatus): string {
-  if (status === "up") return "up";
-  if (status === "down") return "down";
-  return "planned";
+function statusLabel(
+  status: HomelabServiceStatus,
+  t: (key: import("@/lib/i18n/messages").MessageKey) => string
+): string {
+  if (status === "up") return t("homelab.status.up");
+  if (status === "down") return t("homelab.status.down");
+  return t("homelab.status.planned");
 }
 
 function statusClass(status: HomelabServiceStatus): string {
@@ -57,6 +62,7 @@ function ResourceBar({
 }
 
 export default function HomelabPage() {
+  const { t } = useLocale();
   const query = useQuery({
     queryKey: ["homelab-snapshot"],
     queryFn: getHomelabSnapshot,
@@ -69,16 +75,19 @@ export default function HomelabPage() {
 
   return (
     <MobileLayout>
-      <header className="mb-6">
-        <h1 className="text-2xl font-bold text-zinc-100">Homelab</h1>
-        <p className="text-sm text-zinc-400">
-          {HOMELAB_HOST.name}
-        </p>
+      <header className="mb-6 flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-zinc-100">
+            {t("homelab.title")}
+          </h1>
+          <p className="text-sm text-zinc-400">{HOMELAB_HOST.name}</p>
+        </div>
+        <LocaleToggle />
       </header>
 
       {query.isError && (
         <QueryErrorBanner
-          message="Could not load homelab."
+          message={t("homelab.error")}
           onRetry={() => void query.refetch()}
         />
       )}
@@ -86,34 +95,37 @@ export default function HomelabPage() {
       {query.isLoading && (
         <div className="mb-4 flex items-center gap-2 text-sm text-zinc-500">
           <LoadingSpinner className="h-4 w-4" />
-          Loading…
+          {t("common.loading")}
         </div>
       )}
 
       <section className="mb-4 rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
-          Host
+          {t("homelab.host")}
         </h2>
         <p className="mt-2 text-lg font-semibold text-zinc-100">
-          {online ? "Online" : "Offline"}
+          {online ? t("homelab.online") : t("homelab.offline")}
         </p>
         <p className="mt-1 text-sm text-zinc-500">
           {HOMELAB_HOST.cpu} · {HOMELAB_HOST.ramGb} GB · {HOMELAB_HOST.diskGb}{" "}
           GB SSD
         </p>
         {!online && (
-          <p className="mt-2 text-sm text-zinc-600">PC not online yet</p>
+          <p className="mt-2 text-sm text-zinc-600">{t("homelab.notOnline")}</p>
         )}
         <div className="mt-4 space-y-3">
-          <ResourceBar label="CPU" pct={snapshot?.cpuPct ?? null} />
-          <ResourceBar label="Memory" pct={snapshot?.memPct ?? null} />
-          <ResourceBar label="Disk" pct={snapshot?.diskPct ?? null} />
+          <ResourceBar label={t("homelab.cpu")} pct={snapshot?.cpuPct ?? null} />
+          <ResourceBar
+            label={t("homelab.memory")}
+            pct={snapshot?.memPct ?? null}
+          />
+          <ResourceBar label={t("homelab.disk")} pct={snapshot?.diskPct ?? null} />
         </div>
       </section>
 
       <section className="mb-4 rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
-          Services
+          {t("homelab.services")}
         </h2>
         <ul className="mt-3 divide-y divide-zinc-800">
           {services.map((service) => (
@@ -130,7 +142,7 @@ export default function HomelabPage() {
               <p
                 className={`shrink-0 text-xs font-medium ${statusClass(service.status)}`}
               >
-                {statusLabel(service.status)}
+                {statusLabel(service.status, t)}
               </p>
             </li>
           ))}
@@ -139,17 +151,19 @@ export default function HomelabPage() {
 
       <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
-          Network
+          {t("homelab.network")}
         </h2>
         <div className="mt-3 flex items-baseline justify-between gap-3">
           <div className="min-w-0">
             <p className="text-sm font-medium text-zinc-200">{router.name}</p>
-            <p className="text-xs text-zinc-500">via {router.via}</p>
+            <p className="text-xs text-zinc-500">
+              {t("homelab.via")} {router.via}
+            </p>
           </div>
           <p
             className={`shrink-0 text-xs font-medium ${statusClass(router.status)}`}
           >
-            {statusLabel(router.status)}
+            {statusLabel(router.status, t)}
           </p>
         </div>
       </section>
